@@ -2,12 +2,13 @@ import cv2
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.svm import SVC
-from sklearn.preprocessing import LabelEncoder
+
 from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 
-from utils import prepare_data, download_dataset
+from utils import ButterflyDataset
 
-def get_descriptors(X_values, dataset_path):
+def get_descriptors(X_values):
     all_descriptors = []  # The "Soup" of all features
 
     # Initialize SIFT
@@ -20,7 +21,7 @@ def get_descriptors(X_values, dataset_path):
         if counter % 100 == 0:
             print(f"Image: {counter}/{X_values.shape[0]}")
         # Read Image
-        img = cv2.imread(f"{dataset_path}/train/{img_path}", cv2.IMREAD_GRAYSCALE)
+        img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
         if img is None: continue
 
         # Keypoint Detection (SIFT)
@@ -51,7 +52,7 @@ def train_kmeans_model(all_descriptors):
 
     return kmeans
     
-def generate_features(all_descriptors, kmeans, K=1000):
+def generate_features(all_descriptors, kmeans, K=5000):
 
     features = [] # List to hold the K-dimensional histograms (the features)
 
@@ -75,16 +76,24 @@ def generate_features(all_descriptors, kmeans, K=1000):
     return features
 
 def main():
-    dataset_path = download_dataset()
+    dataset = ButterflyDataset()
 
-    data = prepare_data(dataset_path)
+    X = dataset.filepaths
+    y = dataset.labels
 
+    X_train, X_test, y_train, y_test = train_test_split(
+            X, 
+            y, 
+            test_size=0.2, 
+            random_state=42, 
+            stratify=y # Use stratify if you want balanced classes across splits
+        )
 
-    train_descriptors = get_descriptors(data["X_train"], dataset_path)
+    train_descriptors = get_descriptors(X_train)
     kmeans = train_kmeans_model(train_descriptors)
     train_features = generate_features(train_descriptors, kmeans)
 
-    test_descriptors = get_descriptors(data["X_test"], dataset_path)
+    test_descriptors = get_descriptors(X_test)
     test_features = generate_features(test_descriptors, kmeans)
 
     print("Starting SVM training...")
@@ -96,13 +105,13 @@ def main():
     svm = SVC(C=1.0, kernel='rbf', decision_function_shape='ovr', random_state=42)
 
     # Train the SVM on the BoVW histograms
-    svm.fit(train_features, data["y_train"])
+    svm.fit(train_features, y_train)
 
     print("SVM training complete.")
 
     y_pred = svm.predict(test_features)
     # You can then use metrics like classification_report, accuracy_score, etc. to evaluate performance.
-    print(classification_report(data["y_test"], y_pred, target_names=data["encoder"].classes_))
+    print(classification_report(y_test, y_pred, target_names=dataset.encoder.classes_))
 
 if __name__ == "__main__":
     main()

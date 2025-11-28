@@ -3,73 +3,50 @@ import os
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+import torch
+
+from PIL import Image
 from sklearn.preprocessing import LabelEncoder
+        
+class ButterflyDataset():
+    def __init__(self, transform=None):
+        # Set kaggle API token as environment variable
+        os.environ['KAGGLE_API_TOKEN'] = 'KGAT_3bd7023f3e62101d2b008a2f3b4168de'
 
-def download_dataset():
-    # Set kaggle API token as environment variable
-    os.environ['KAGGLE_API_TOKEN'] = 'KGAT_3bd7023f3e62101d2b008a2f3b4168de'
-
-    # Download latest version, returns dataset location
-    return kagglehub.dataset_download("phucthaiv02/butterfly-image-classification")
-
-
-def prepare_data(dataset_path, include_val=False):
-    # Can only use training data as that's only data labelled
-    df = pd.read_csv(f"{dataset_path}/Training_set.csv")
-    df.head()
-
-    X = df["filename"]
-    y = df["label"]
-
-    # Convert string labels into numerical integers (0, 1, 2, ... 74)
-    # Maybe 1 hot encoding for CNNs
-    le = LabelEncoder()
-    y = le.fit_transform(np.array(y))
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, 
-        y, 
-        test_size=0.2, 
-        random_state=42, 
-        stratify=y # Use stratify if you want balanced classes across splits
-    )
-
-    if include_val:
-        X_val, X_test, y_val, y_test = train_test_split(
-            X_test, 
-            y_test, 
-            test_size=0.5, 
-            random_state=42, 
-            stratify=y_test # Stratify on the remaining set's labels
+        # Download latest version, returns dataset location
+        self.dataset_path = kagglehub.dataset_download("phucthaiv02/butterfly-image-classification")
+        
+        # Read csv for labels
+        df = pd.read_csv(f"{self.dataset_path}/Training_set.csv")
+        df['filename'] = df['filename'].apply(
+            lambda img_filename: os.path.join(f"{self.dataset_path}/train", img_filename)
         )
 
-    print(f"--- Dataset shapes ---")
-    print(f"Train set (80%): {X_train.shape}")
+        self.filepaths = np.array(df["filename"])
+        self.labels = np.array(df["label"])
 
-    if include_val:
-        print(f"Validation set (10%): {X_val.shape}")
-    print(f"Test set (10%): {X_test.shape}")
+        self.transform = transform
 
-    if include_val:
-        data= {
-            "X_train": X_train,
-            "y_train": y_train,
-            "X_val": X_val,
-            "y_val": y_val,
-            "X_test": X_test,
-            "y_test": y_test,
-            "encoder": le
-        }
-    else:
-        data= {
-            "X_train": X_train,
-            "y_train": y_train,
-            "X_test": X_test,
-            "y_test": y_test,
-            "encoder": le
-        }
+        self.encoder=LabelEncoder()
+        self.labels = self.encoder.fit_transform(np.array(self.labels))
+
+
+    def __len__(self):
+        # Returns the total number of samples (images) in the dataset
+        return len(self.filepaths)
+
+    def __getitem__(self, idx):
+        # This function defines what happens when you index the dataset (e.g., dataset[5])
+        img_path = self.filepaths[idx]
+        label_id = self.labels[idx]
+
+        # Read Image (PIL is standard for PyTorch transforms)
+        image = Image.open(img_path).convert('RGB') # CNNs use 3-channel RGB images
         
-    return data
-         
+        # Apply Transformations
+        if self.transform:
+            image = self.transform(image)
         
+        # Return the image tensor and its encoded label
+        return image, torch.tensor(label_id, dtype=torch.long)
+    
