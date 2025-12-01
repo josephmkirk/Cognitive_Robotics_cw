@@ -7,6 +7,9 @@ import torch
 
 from PIL import Image
 from sklearn.preprocessing import LabelEncoder
+
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
         
 class ButterflyDataset():
     def __init__(self, transform=None):

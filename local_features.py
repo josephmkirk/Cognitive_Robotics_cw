@@ -40,7 +40,7 @@ def train_kmeans_model(all_descriptors):
     all_descriptors_stacked = np.vstack(all_descriptors)
 
     # Define K
-    K = 1000  
+    K = 5000  
     print(f"Starting K-Means clustering with K = {K}...")
 
     # Initialize the K-Means model

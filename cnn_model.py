@@ -7,7 +7,7 @@ class Net(nn.Module):
         super(Net, self).__init__()
 
         # Output layer sizes
-        out_sizes = [16,32,64,96]
+        out_sizes = [16,32,64,96,128]
 
         self.conv1 = nn.Conv2d(3, out_sizes[0], kernel_size=3, padding=1)
         self.batchnorm1 = nn.BatchNorm2d(out_sizes[0])
@@ -21,35 +21,43 @@ class Net(nn.Module):
         self.conv4 = nn.Conv2d(out_sizes[2], out_sizes[3], kernel_size=3, padding=1)
         self.batchnorm4 = nn.BatchNorm2d(out_sizes[3])
 
+        self.conv5 = nn.Conv2d(out_sizes[3], out_sizes[4], kernel_size=3, padding=1)
+        self.batchnorm5 = nn.BatchNorm2d(out_sizes[4])
+
         self.pool = nn.MaxPool2d(2, 2)
 
         self.dropout = nn.Dropout(dropout)
 
-        FINAL_DIM = 224 // (2 ** len(out_sizes)) # 224 / 8 = 28
+        FINAL_DIM = 256 // (2 ** len(out_sizes)) # 224 / 8 = 28
         FC_INPUT_FEATURES = out_sizes[-1] * FINAL_DIM * FINAL_DIM # 128 * 28 * 28 = 100352
 
-        self.fc1 = nn.Linear(FC_INPUT_FEATURES, 48)  # flatten after conv+pool
-        self.fc2 = nn.Linear(48, 24)
-        self.fc3 = nn.Linear(24, num_classes)
+        self.fc1 = nn.Linear(FC_INPUT_FEATURES, 96)  # flatten after conv+pool
+        self.fc2 = nn.Linear(96, 82)
+        self.fc3 = nn.Linear(82, num_classes)
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.batchnorm1(x)
+        # x = self.batchnorm1(x)
         x = F.relu(x)
         x = self.pool(x)
         
         x = self.conv2(x)
-        x = self.batchnorm2(x)
+        # x = self.batchnorm2(x)
         x = F.relu(x)
         x = self.pool(x)
 
         x = self.conv3(x)
-        x = self.batchnorm3(x)
+        # x = self.batchnorm3(x)
         x = F.relu(x)
         x = self.pool(x)
 
         x = self.conv4(x)
-        x = self.batchnorm4(x)
+        # x = self.batchnorm4(x)
+        x = F.relu(x)
+        x = self.pool(x)
+
+        x = self.conv5(x)
+        # x = self.batchnorm5(x)
         x = F.relu(x)
         x = self.pool(x)
 

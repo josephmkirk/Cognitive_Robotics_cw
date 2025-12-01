@@ -1,13 +1,13 @@
 import os
 import numpy as np
-import torch, torchvision
+import torch
 import pandas as pd
 
 from torchsummary import summary
 from torch.utils.data import Subset
+from torchvision import transforms
 
 from sklearn.model_selection import KFold
-from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
 
 from cnn_model import Net
@@ -65,6 +65,7 @@ def train_model(model,
                 fold=1
                 ):
     
+    # Set device
     USE_GPU = False
     if USE_GPU and torch.cuda.is_available():
         device = torch.device('cuda')
@@ -72,18 +73,19 @@ def train_model(model,
         device = torch.device('cpu')
     print(f"Using device: {device}")
 
-    # Initialize model, loss function, and optimizer
+    # Initialize model
     model = Net(dropout=dropout)
     model.to(device)
+    summary(model, (3, 256, 256))
 
-    summary(model, (3, 224, 224))
-
+    # Initialize loss function
     criterion = torch.nn.CrossEntropyLoss()
     criterion.to(device)
 
+    # Initialize Optimiser
+    # Define which layers to apply weight decay to
     decay = []
     no_decay = []
-
     for name, param in model.named_parameters():
         if "batchnorm" in name.lower() or "bn" in name.lower():
             no_decay.append(param)
@@ -95,7 +97,7 @@ def train_model(model,
         {"params": no_decay, "weight_decay": 0.0},
     ], lr=learning_rate)
 
-
+    # Measurement Records
     train_loss_history = []
     val_loss_history = []
     val_accuracy_history = []
@@ -115,6 +117,7 @@ def train_model(model,
         val_loss_history.append(val_loss)
         val_accuracy_history.append(accuracy)
 
+    # Save performance metrics
     df = pd.DataFrame()
 
     df["Train Loss"] = train_loss_history
@@ -174,46 +177,41 @@ def evaluate(model, data_loader, criterion, device):
     return avg_loss, accuracy
 
 
-def get_transforms(mode='train'):
-    if mode == 'train':
-        tfs = torchvision.transforms.Compose([
-            torchvision.transforms.ToTensor(),
-        ])
-    elif mode == 'eval': # no stochastic transforms, or use p=0
-        tfs = torchvision.transforms.Compose([
-            torchvision.transforms.ToTensor(), # convert images to tensors
-        ])
-        for tf in tfs.transforms:
-            if hasattr(tf, 'train'):
-                tf.eval()  # set to eval mode if applicable # type: ignore
-    else:
-        raise ValueError(f"Unknown mode {mode} for transforms, must be 'train' or 'eval'.")
+def get_transforms():
+    tfs = transforms.Compose([
+        transforms.Resize((256,256)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomVerticalFlip(p=0.5),
+        transforms.RandomRotation(30),
+        transforms.ToTensor()
+    ])
     return tfs
 
 def main():
-    model = Net()
 
+    # Define model and transforms
+    model = Net()
     transforms = get_transforms()
 
     # Define dataset
     dataset = ButterflyDataset(transform=transforms)
 
+    # Define train/val/test split
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
     train_data, val_data = torch.utils.data.random_split(dataset, [train_size, val_size])
 
-    # Access the first sample in the training subset
-    # train_data[0] calls the __getitem__ method of the underlying Dataset
-    first_image_tensor, first_label = train_data[0] 
-
+    # Access the first sample in the training subset,
     # Check the size (shape) of the image tensor
     # The output will typically be (Channels, Height, Width) e.g., (3, 224, 224)
+    first_image_tensor, first_label = train_data[0] 
     tensor_shape = first_image_tensor.shape
-
     print(f"Shape of a single image tensor (C, H, W): {tensor_shape}") 
     
-    batch_size = 16
 
+    batch_size = 16
+    
+    # Define dataloaders
     train_loader = torch.utils.data.DataLoader(train_data,
                                                 batch_size=batch_size,
                                                 shuffle=True,
