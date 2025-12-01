@@ -1,4 +1,6 @@
 import os
+# This ensures PyTorch does not see any CUDA devices, forcing CPU usage.
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
 import numpy as np
 import torch
 import pandas as pd
