@@ -1,6 +1,4 @@
 import os
-# This ensures PyTorch does not see any CUDA devices, forcing CPU usage.
-os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 import optuna
 import torch
@@ -8,9 +6,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from cnn_model import Net
-from utils import ButterflyDataset
-from train_cnn import get_transforms
+from cnn_model import ButterflyNet, BrainTumorNet
+from utils import ButterflyDataset, BrainTumorDataset
 
 
 # Objective function for Optuna
@@ -20,15 +17,25 @@ def objective(trial):
     batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256])
     dropout = trial.suggest_float("dropout", 0.0, 0.5)
     weight_decay = trial.suggest_float("weight_decay", 1e-6, 1e-3, log=True)
-    epochs = trial.suggest_int("epochs", 10, 50)
+    epochs = trial.suggest_int("epochs", 1, 2)
 
     # ---- Data loaders ----
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_data, batch_size=256, shuffle=False)
 
     # ---- Model, loss, optimizer ----
+    USE_GPU = True
+    # This ensures PyTorch does not see any CUDA devices, forcing CPU usage.
+    # Only needed for when GPU is so old that CUDA is outdated
+    if not USE_GPU:
+        os.environ['CUDA_VISIBLE_DEVICES'] = ''
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = Net(dropout=dropout).to(device)
+
+    if MODEL_NAME == "Butterfly":
+        model = ButterflyNet(input_size=dataset.input_size, dropout=dropout).to(device)
+    elif MODEL_NAME == "BrainTumor":
+        model = BrainTumorNet(input_size=dataset.input_size, dropout=dropout).to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     criterion = nn.CrossEntropyLoss()
@@ -73,7 +80,9 @@ def objective(trial):
     return accuracy
 
 
-def save_study_plots(study, outdir="optuna_plots"):
+def save_study_plots(study):
+    outdir=f"optuna_plots/{MODEL_NAME}"
+
     import os
     os.makedirs(outdir, exist_ok=True)
 
@@ -96,16 +105,7 @@ def save_study_plots(study, outdir="optuna_plots"):
     with open(f"{outdir}/best_hparams.json", "w") as f:
         json.dump(trial.params, f, indent=4)
 
-# Running the optimisation
-if __name__ == "__main__":
-
-    # Load dataset
-    dataset = ButterflyDataset(get_transforms())
-
-    # Create train-val split
-    train_size = int(0.8 * len(dataset))
-    val_size = len(dataset) - train_size
-    train_data, val_data = torch.utils.data.random_split(dataset, [train_size, val_size])
+def start_opt():
 
     # Create and run Optuna study
     study = optuna.create_study(
@@ -114,7 +114,7 @@ if __name__ == "__main__":
         pruner=optuna.pruners.MedianPruner()
     )
 
-    study.optimize(objective, n_trials=50)
+    study.optimize(objective, n_trials=2)
 
     # Save plots
     save_study_plots(study)    
@@ -127,4 +127,36 @@ if __name__ == "__main__":
     print("  Params:")
     for key, value in trial.params.items():
         print(f"    {key}: {value}")
+
+# Running the optimisation
+if __name__ == "__main__":
+#     # Load dataset
+#     dataset = ButterflyDataset()
+
+#     # Create train-val split
+#     train_size = int(0.8 * len(dataset))
+#     val_size = len(dataset) - train_size
+#     train_data, val_data = torch.utils.data.random_split(dataset, [train_size, val_size])
+
+#     # Global variable to track which model is being tuned
+#     MODEL_NAME = "Butterfly"
+
+#     start_opt()
+
+    # Load dataset
+    dataset = BrainTumorDataset()
+
+    # Create train-val split
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
+    train_data, val_data = torch.utils.data.random_split(dataset, [train_size, val_size])
+
+    # Global variable to track which model is being tuned
+    MODEL_NAME = "BrainTumor"
+
+    start_opt()
+
+    
+
+    
 

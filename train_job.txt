@@ -1,0 +1,13 @@
+#!/bin/bash --login
+#SBATCH -n 1        # (or --ntasks=1) Use just 1 core
+
+# OPTIONAL LINE: the default partition is serial
+#SBATCH -p serial   # (or --partition=serial)
+
+# Now the commands to be run by the job
+git clone https://github.com/josephmkirk/Cognitive_Robotics_cw.git
+
+cd Cognitive_Robotics_cw
+
+uv sync
+uv run hyperparameter_tuning.py

@@ -1,6 +1,4 @@
 import os
-# This ensures PyTorch does not see any CUDA devices, forcing CPU usage.
-os.environ['CUDA_VISIBLE_DEVICES'] = ''
 import numpy as np
 import torch
 import pandas as pd
@@ -12,49 +10,10 @@ from torchvision import transforms
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
 
-from cnn_model import Net
-from utils import ButterflyDataset
+from cnn_model import ButterflyNet, BrainTumorNet
+from utils import ButterflyDataset, BrainTumorDataset
 
-
-def k_fold_training(dataset, 
-                    n_epochs, 
-                    batch_size=4,
-                    weight_decay=0.1,
-                    dropout=0.1,
-                    learning_rate=5e-4,
-                    USE_GPU=False,
-                    metric_output="tmp",
-                    n_splits=5
-                    ):
-
-    # random_state ensures reproducibility of the splits.
-    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
-
-    print(f"Starting {n_splits}-fold cross-validation...")
-    for fold, (train_index, val_index) in enumerate(kf.split(dataset)):
-        print(f"\n--- Fold {fold+1}/{n_splits} ---")
-
-        # Subset is a PyTorch utility to create a dataset using a list of indices
-        train_subset = Subset(dataset, train_index)
-        val_subset = Subset(dataset, val_index)
-
-        # dataloaders
-        train_loader = torch.utils.data.DataLoader(train_subset,
-                                                batch_size=batch_size,
-                                                shuffle=True,
-                                                )
-        val_loader = torch.utils.data.DataLoader(val_subset,
-                                                batch_size=batch_size,
-                                                shuffle=False,
-                                                )
-        model = Net()
-
-        train_model(model,
-                    train_loader,
-                    val_loader,
-                    n_epochs
-                    )
-
+from pathlib import Path
 
 def train_model(model,
                 train_loader,
@@ -64,21 +23,23 @@ def train_model(model,
                 weight_decay=1e-6,
                 dropout=0.1,
                 output_file="tmp",
-                fold=1
+                input_size = (1,1,1)
                 ):
     
     # Set device
-    USE_GPU = False
-    if USE_GPU and torch.cuda.is_available():
-        device = torch.device('cuda')
-    else:
-        device = torch.device('cpu')
+    USE_GPU = True
+    # This ensures PyTorch does not see any CUDA devices, forcing CPU usage.
+    # Only needed for when GPU is so old that CUDA is outdated
+    if not USE_GPU:
+        os.environ['CUDA_VISIBLE_DEVICES'] = ''
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
     print(f"Using device: {device}")
 
     # Initialize model
-    model = Net(dropout=dropout)
     model.to(device)
-    summary(model, (3, 256, 256))
+    summary(model, input_size)
 
     # Initialize loss function
     criterion = torch.nn.CrossEntropyLoss()
@@ -126,7 +87,16 @@ def train_model(model,
     df["Val Loss"] = val_loss_history
     df["Accuracy"] = val_accuracy_history
 
-    df = df.to_csv(f"Test Metrics/{output_file}.csv")
+    # Convert the string path to a Path object
+    p = Path("TestMetrics")
+    
+    # Use the mkdir() method
+    # parents=True creates parent directories if they don't exist.
+    # exist_ok=True prevents the error if the directory already exists.
+    p.mkdir(parents=True, exist_ok=True)
+    print(f"Directory 'TestMetrics' ensured to exist.")
+
+    df = df.to_csv(f"TestMetrics/{output_file}.csv")
 
     return accuracy
 
@@ -179,37 +149,20 @@ def evaluate(model, data_loader, criterion, device):
     return avg_loss, accuracy
 
 
-def get_transforms():
-    tfs = transforms.Compose([
-        transforms.Resize((256,256)),
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomVerticalFlip(p=0.5),
-        transforms.RandomRotation(30),
-        transforms.ToTensor()
-    ])
-    return tfs
+def main(task):
+    if task == "Butterfly":
+        dataset = ButterflyDataset()
+        model = ButterflyNet(dataset.input_size)
 
-def main():
+    elif task == "BrainTumor":
+        dataset = BrainTumorDataset()
+        model = BrainTumorNet(dataset.input_size)
 
-    # Define model and transforms
-    model = Net()
-    transforms = get_transforms()
-
-    # Define dataset
-    dataset = ButterflyDataset(transform=transforms)
 
     # Define train/val/test split
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
     train_data, val_data = torch.utils.data.random_split(dataset, [train_size, val_size])
-
-    # Access the first sample in the training subset,
-    # Check the size (shape) of the image tensor
-    # The output will typically be (Channels, Height, Width) e.g., (3, 224, 224)
-    first_image_tensor, first_label = train_data[0] 
-    tensor_shape = first_image_tensor.shape
-    print(f"Shape of a single image tensor (C, H, W): {tensor_shape}") 
-    
 
     batch_size = 16
     
@@ -226,9 +179,12 @@ def main():
     train_model(model,
                 train_loader,
                 val_loader,
-                n_epochs=10
+                n_epochs=10,
+                input_size=dataset.input_size,
+                output_file=task
                 )
     
 
 if __name__ == "__main__":
-    main()
+    main("Butterfly")
+    main("BrainTumor")

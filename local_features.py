@@ -6,7 +6,7 @@ from sklearn.svm import SVC
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 
-from utils import ButterflyDataset
+from utils import ButterflyDataset, BrainTumorDataset
 
 def get_descriptors(X_values):
     all_descriptors = []  # The "Soup" of all features
@@ -15,11 +15,11 @@ def get_descriptors(X_values):
     sift = cv2.SIFT_create()
 
     counter = 0
-    print("Extracting SIFT features from butterflies...")
+    print("Extracting SIFT features...")
 
     for img_path in X_values:
-        if counter % 100 == 0:
-            print(f"Image: {counter}/{X_values.shape[0]}")
+        if counter % 200 == 0:
+            print(f"Image: [{counter}/{X_values.shape[0]}]")
         # Read Image
         img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
         if img is None: continue
@@ -44,7 +44,7 @@ def train_kmeans_model(all_descriptors):
     print(f"Starting K-Means clustering with K = {K}...")
 
     # Initialize the K-Means model
-    kmeans = MiniBatchKMeans(n_clusters=K, init='k-means++', n_init='auto', random_state=42, verbose=1)
+    kmeans = MiniBatchKMeans(n_clusters=K, init='k-means++', n_init='auto', random_state=42, verbose=0)
     # Fit the model to the stacked descriptors
     kmeans.fit(all_descriptors_stacked)
 
@@ -75,9 +75,7 @@ def generate_features(all_descriptors, kmeans, K=5000):
     
     return features
 
-def main():
-    dataset = ButterflyDataset()
-
+def main(dataset):
     X = dataset.filepaths
     y = dataset.labels
 
@@ -114,4 +112,5 @@ def main():
     print(classification_report(y_test, y_pred, target_names=dataset.encoder.classes_))
 
 if __name__ == "__main__":
-    main()
+    # main(ButterflyDataset())
+    main(BrainTumorDataset())
