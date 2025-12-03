@@ -175,7 +175,7 @@ def setup_tuning(dataset, name, model):
 
     # Define dataloaders
     train_loader = torch.utils.data.DataLoader(train_data,
-                                                batch_size=best_trial["batch_size"],
+                                                batch_size=best_trial.params["batch_size"],
                                                 shuffle=True,
                                                 )
     test_loader = torch.utils.data.DataLoader(test_data,
@@ -184,12 +184,12 @@ def setup_tuning(dataset, name, model):
                                             )
 
     train_model(
-        model(input_size=dataset.input_size, dropout=best_trial["dropout"]),
+        model(input_size=dataset.input_size, dropout=best_trial.params["dropout"]),
         train_loader=train_loader,
         val_loader=test_loader,
-        n_epochs=best_trial["epochs"],
-        learning_rate=best_trial["lr"],
-        weight_decay=best_trial["weight_decay"],
+        n_epochs=best_trial.params["epochs"],
+        learning_rate=best_trial.params["lr"],
+        weight_decay=best_trial.params["weight_decay"],
         output_file=f"BEST_{name}"
     )
 
