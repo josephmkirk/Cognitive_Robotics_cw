@@ -180,6 +180,8 @@ class Animal10Dataset():
             transforms.ToTensor(), # Converts image to a tensor (H, W, C) -> (C, H, W) and scales to [0, 1]
         ])
 
+        self.cached_images = []
+
         print("Starting in-memory image caching...")
         
         for img_path in all_filepaths: # Iterate through the collected paths
