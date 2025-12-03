@@ -51,13 +51,15 @@ def objective(trial):
         train_loader = DataLoader(train_subset,
                                   batch_size=batch_size,
                                   shuffle=True,
-                                  num_workers=os.cpu_count()
+                                  num_workers=os.cpu_count(),
+                                  pin_memory=True
                                   )
         # Note: Validation batch size is typically kept constant for testing
         val_loader = DataLoader(val_subset,
                                 batch_size=256,
                                 shuffle=False,
-                                num_workers=os.cpu_count()
+                                num_workers=os.cpu_count(),
+                                pin_memory=True
                                 )
 
         # 3. Model, loss, optimizer (MUST be re-initialized for each fold)
@@ -187,11 +189,13 @@ def setup_tuning(dataset, name, model):
                                                 batch_size=best_trial.params["batch_size"],
                                                 shuffle=True,
                                                 num_workers=os.cpu_count(),
+                                                pin_memory=True
                                                 )
     test_loader = torch.utils.data.DataLoader(test_data,
                                             batch_size=256,
                                             shuffle=False,
                                             num_workers=os.cpu_count(),
+                                            pin_memory=True
                                             )
 
     train_model(

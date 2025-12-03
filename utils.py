@@ -183,7 +183,7 @@ class Animal10Dataset():
         self.cached_images = []
 
         print("Starting in-memory image caching...")
-        
+        counter = 0
         for img_path in all_filepaths: # Iterate through the collected paths
             try:
                 # Load, convert to RGB, and apply basic transforms for caching
@@ -196,7 +196,11 @@ class Animal10Dataset():
             except Exception as e:
                 print(f"Skipping corrupted file: {img_path}. Error: {e}")
                 # You must ensure the filepaths and labels lists are synchronized if you skip a file!
-                
+
+            if counter % 100 == 0:
+                print(f"[{counter}/{len(all_filepaths)}] in cache")
+            counter += 1            
+
         print(f"Caching complete. {len(self.cached_images)} tensors loaded into RAM.")
         
         # --- Your existing code to finalize attributes ---
@@ -204,7 +208,7 @@ class Animal10Dataset():
         # ... (rest of the __init__ including LabelEncoder) ...
         
         # Store augmentations separately
-        self.transform = transforms.compose([
+        self.transform = transforms.Compose([
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.5),
             transforms.RandomRotation(30)
