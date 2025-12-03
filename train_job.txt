@@ -11,3 +11,4 @@ cd Cognitive_Robotics_cw
 
 uv sync
 uv run hyperparameter_tuning.py
+uv run local_features.py
