@@ -21,10 +21,11 @@ def objective(trial):
     batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256])
     dropout = trial.suggest_float("dropout", 0.0, 0.5)
     weight_decay = trial.suggest_float("weight_decay", 1e-6, 1e-3, log=True)
-    epochs = trial.suggest_int("epochs", 1, 2)
+    epochs = trial.suggest_int("epochs", 10, 50)
     
     # Setup device
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using: {device}")
     criterion = nn.CrossEntropyLoss()
     
     # ---- 5-Fold Cross-Validation Setup ----
