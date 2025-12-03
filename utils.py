@@ -179,7 +179,7 @@ class Animal10Dataset():
         full_df["label"] = all_labels
 
         # Define the fraction of data you want to KEEP (75% or 0.75)
-        FRACTION_TO_KEEP = 0.75
+        FRACTION_TO_KEEP = 0.5
 
         # Use a fixed random state for reproducibility
         RANDOM_STATE = 42
