@@ -48,9 +48,17 @@ def objective(trial):
         val_subset = Subset(train_data, val_index)
         
         # 2. Create DataLoaders for the current fold
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(train_subset,
+                                  batch_size=batch_size,
+                                  shuffle=True,
+                                  num_workers=os.cpu_count()
+                                  )
         # Note: Validation batch size is typically kept constant for testing
-        val_loader = DataLoader(val_subset, batch_size=256, shuffle=False)
+        val_loader = DataLoader(val_subset,
+                                batch_size=256,
+                                shuffle=False,
+                                num_workers=os.cpu_count()
+                                )
 
         # 3. Model, loss, optimizer (MUST be re-initialized for each fold)
         if MODEL_NAME == "Butterfly":
@@ -178,10 +186,12 @@ def setup_tuning(dataset, name, model):
     train_loader = torch.utils.data.DataLoader(train_data,
                                                 batch_size=best_trial.params["batch_size"],
                                                 shuffle=True,
+                                                num_workers=os.cpu_count(),
                                                 )
     test_loader = torch.utils.data.DataLoader(test_data,
                                             batch_size=256,
                                             shuffle=False,
+                                            num_workers=os.cpu_count(),
                                             )
 
     train_model(

@@ -173,10 +173,12 @@ def main(task):
     train_loader = torch.utils.data.DataLoader(train_data,
                                                 batch_size=batch_size,
                                                 shuffle=True,
+                                                num_workers=os.cpu_count()
                                                 )
     val_loader = torch.utils.data.DataLoader(val_data,
                                             batch_size=batch_size,
                                             shuffle=False,
+                                            num_workers=os.cpu_count(),
                                             )
 
     train_model(model,
