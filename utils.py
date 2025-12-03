@@ -174,6 +174,24 @@ class Animal10Dataset():
                     all_filepaths.append(full_path)
                     all_labels.append(translate[animal_label]) # The folder name is the label
 
+        full_df = pd.DataFrame()
+        full_df["filepath"] = all_filepaths
+        full_df["label"] = all_labels
+
+        # Define the fraction of data you want to KEEP (75% or 0.75)
+        FRACTION_TO_KEEP = 0.75
+
+        # Use a fixed random state for reproducibility
+        RANDOM_STATE = 42
+
+        # Group the DataFrame by 'label' and sample 75% from each group
+        df_reduced = full_df.groupby('label', group_keys=False).apply(
+            lambda x: x.sample(frac=FRACTION_TO_KEEP, random_state=RANDOM_STATE)
+        )
+
+        print(f"Original dataset size: {len(full_df)}")
+        print(f"Reduced dataset size (approx 75%): {len(df_reduced)}")
+
 
         cache_transform = transforms.Compose([
             transforms.Resize((256, 256)),
@@ -184,7 +202,7 @@ class Animal10Dataset():
 
         print("Starting in-memory image caching...")
         counter = 0
-        for img_path in all_filepaths: # Iterate through the collected paths
+        for img_path in df_reduced["filepath"]: # Iterate through the collected paths
             try:
                 # Load, convert to RGB, and apply basic transforms for caching
                 image = Image.open(img_path).convert('RGB')
@@ -197,15 +215,14 @@ class Animal10Dataset():
                 print(f"Skipping corrupted file: {img_path}. Error: {e}")
                 # You must ensure the filepaths and labels lists are synchronized if you skip a file!
 
-            if counter % 100 == 0:
-                print(f"[{counter}/{len(all_filepaths)}] in cache")
+            if counter % 1000 == 0:
+                print(f"[{counter}/{len(df_reduced["filepath"])}] in cache")
             counter += 1            
 
         print(f"Caching complete. {len(self.cached_images)} tensors loaded into RAM.")
         
         # --- Your existing code to finalize attributes ---
-        self.filepaths = np.array(all_filepaths) # Keep this for reference
-        # ... (rest of the __init__ including LabelEncoder) ...
+        self.filepaths = np.array(df_reduced["filepath"]) # Keep this for reference
         
         # Store augmentations separately
         self.transform = transforms.Compose([
@@ -214,9 +231,7 @@ class Animal10Dataset():
             transforms.RandomRotation(30)
         ]) # Keep the augmentation pipeline if passed
 
-
-        self.labels = np.array(all_labels)
-
+        self.labels = np.array(df_reduced["label"])
  
         self.input_size = (3,256,256)
 
