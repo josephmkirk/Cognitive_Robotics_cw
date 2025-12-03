@@ -6,7 +6,7 @@ from sklearn.svm import SVC
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 
-from utils import ButterflyDataset, BrainTumorDataset
+from utils import ButterflyDataset, BrainTumorDataset, Animal10Dataset
 
 def get_descriptors(X_values):
     all_descriptors = []  # The "Soup" of all features
@@ -109,8 +109,20 @@ def main(dataset):
 
     y_pred = svm.predict(test_features)
     # You can then use metrics like classification_report, accuracy_score, etc. to evaluate performance.
-    print(classification_report(y_test, y_pred, target_names=dataset.encoder.classes_))
+    report = classification_report(y_test, y_pred, target_names=dataset.encoder.classes_)
+
+    # Define the output file path
+    output_file = f'{dataset.name}_classification_report.txt'
+
+    # Write the string content to the file
+    with open(output_file, 'w') as f:
+        f.write("Classification Report\n") # Optional header
+        f.write("-" * 30 + "\n")
+        f.write(report)
+
+    print(f"Classification report successfully saved to {output_file}")
 
 if __name__ == "__main__":
-    # main(ButterflyDataset())
+    main(Animal10Dataset())
+    main(ButterflyDataset())
     main(BrainTumorDataset())

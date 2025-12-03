@@ -11,7 +11,7 @@ from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
 
 from cnn_model import ButterflyNet, BrainTumorNet
-from utils import ButterflyDataset, BrainTumorDataset
+from utils import ButterflyDataset, BrainTumorDataset, Animal10Dataset
 
 from pathlib import Path
 
@@ -157,6 +157,9 @@ def main(task):
     elif task == "BrainTumor":
         dataset = BrainTumorDataset()
         model = BrainTumorNet(dataset.input_size)
+    elif task == "Animals":
+        dataset = Animal10Dataset()
+        model = BrainTumorNet(dataset.input_size)
 
 
     # Define train/val/test split
@@ -188,3 +191,4 @@ def main(task):
 if __name__ == "__main__":
     main("Butterfly")
     main("BrainTumor")
+    main("Animals")

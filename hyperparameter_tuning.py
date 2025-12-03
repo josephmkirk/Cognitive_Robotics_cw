@@ -4,13 +4,17 @@ import optuna
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
-from cnn_model import ButterflyNet, BrainTumorNet
-from utils import ButterflyDataset, BrainTumorDataset
+from sklearn.model_selection import KFold
+
+from cnn_model import ButterflyNet, BrainTumorNet, Animal10Net
+from utils import ButterflyDataset, BrainTumorDataset, Animal10Dataset
+from train_cnn import train_model
+
+import numpy as np
 
 
-# Objective function for Optuna
 def objective(trial):
     # ---- Hyperparameter search space ----
     lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
@@ -18,67 +22,91 @@ def objective(trial):
     dropout = trial.suggest_float("dropout", 0.0, 0.5)
     weight_decay = trial.suggest_float("weight_decay", 1e-6, 1e-3, log=True)
     epochs = trial.suggest_int("epochs", 1, 2)
-
-    # ---- Data loaders ----
-    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_data, batch_size=256, shuffle=False)
-
-    # ---- Model, loss, optimizer ----
-    USE_GPU = True
-    # This ensures PyTorch does not see any CUDA devices, forcing CPU usage.
-    # Only needed for when GPU is so old that CUDA is outdated
-    if not USE_GPU:
-        os.environ['CUDA_VISIBLE_DEVICES'] = ''
-
+    
+    # Setup device
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    if MODEL_NAME == "Butterfly":
-        model = ButterflyNet(input_size=dataset.input_size, dropout=dropout).to(device)
-    elif MODEL_NAME == "BrainTumor":
-        model = BrainTumorNet(input_size=dataset.input_size, dropout=dropout).to(device)
-
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     criterion = nn.CrossEntropyLoss()
+    
+    # ---- 5-Fold Cross-Validation Setup ----
+    N_SPLITS = 5
+    kf = KFold(n_splits=N_SPLITS, shuffle=True, random_state=42)
+    
+    # Store validation accuracy for each fold
+    fold_accuracies = []
 
-    # ---- Training + validation ----
-    for epoch in range(epochs):
+    # Get the indices of the full dataset
+    indices = np.arange(len(train_data))
+    
+    # Iterate through each fold
+    for fold, (train_index, val_index) in enumerate(kf.split(indices)):
+        print(f"Starting fold [{fold+1}/{N_SPLITS}]")
 
-        # ----- Training -----
-        model.train()
-        for x, y in train_loader:
-            x, y = x.to(device), y.to(device)
+        # 1. Create Data Subsets for the current fold
+        # Subset creates a view of the original dataset using the indices
+        train_subset = Subset(train_data, train_index)
+        val_subset = Subset(train_data, val_index)
+        
+        # 2. Create DataLoaders for the current fold
+        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+        # Note: Validation batch size is typically kept constant for testing
+        val_loader = DataLoader(val_subset, batch_size=256, shuffle=False)
 
-            optimizer.zero_grad()
-            pred = model(x)
-            loss = criterion(pred, y)
-            loss.backward()
-            optimizer.step()
+        # 3. Model, loss, optimizer (MUST be re-initialized for each fold)
+        if MODEL_NAME == "Butterfly":
+            # Re-initialize the model to ensure independent training for each fold
+            model = ButterflyNet(input_size=(3,224,224), dropout=dropout).to(device)
+        elif MODEL_NAME == "BrainTumor":
+            model = BrainTumorNet(input_size=(3,256,256), dropout=dropout).to(device)
+        elif MODEL_NAME == "Animals":
+            model = Animal10Net(input_size=(3,256,256), dropout=dropout).to(device)
 
-        # ----- Validation -----
-        model.eval()
-        correct = 0
-        total = 0
-        val_loss = 0
+        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-        with torch.no_grad():
-            for x, y in val_loader:
+        # ---- Training + Validation Loop for the current fold ----
+        for epoch in range(epochs):
+            
+            # ----- Training Step (Identical to your original code) -----
+            model.train()
+            for x, y in train_loader:
                 x, y = x.to(device), y.to(device)
+
+                optimizer.zero_grad()
                 pred = model(x)
-                val_loss += criterion(pred, y).item()
-                correct += (pred.argmax(1) == y).sum().item()
-                total += y.size(0)
+                loss = criterion(pred, y)
+                loss.backward()
+                optimizer.step()
 
-        accuracy = correct / total
+            # ----- Validation Step (Identical to your original code) -----
+            model.eval()
+            correct = 0
+            total = 0
+            
+            with torch.no_grad():
+                for x, y in val_loader:
+                    x, y = x.to(device), y.to(device)
+                    pred = model(x)
+                    correct += (pred.argmax(1) == y).sum().item()
+                    total += y.size(0)
 
-        # Report the intermediate result for pruning
-        trial.report(accuracy, epoch)
+            # Calculate accuracy for the current epoch and fold
+            fold_epoch_accuracy = correct / total
+            
+            # Report the intermediate result for pruning (using the current fold's accuracy)
+            # Optuna's pruning logic will treat this as a single sequential training run, 
+            # which is an acceptable approximation for CV
+            trial.report(fold_epoch_accuracy, epoch * N_SPLITS + fold) 
 
-        # If trial pruned, stop early
-        if trial.should_prune():
-            raise optuna.exceptions.TrialPruned()
+            if trial.should_prune():
+                raise optuna.exceptions.TrialPruned()
 
-    return accuracy
-
+        # Store the final accuracy from the last epoch of this fold
+        fold_accuracies.append(fold_epoch_accuracy)
+        
+    # ---- Return the Final Metric ----
+    # The final metric for the Optuna trial is the average accuracy across all folds
+    average_accuracy = np.mean(fold_accuracies)
+    
+    return average_accuracy
 
 def save_study_plots(study):
     outdir=f"optuna_plots/{MODEL_NAME}"
@@ -128,35 +156,47 @@ def start_opt():
     for key, value in trial.params.items():
         print(f"    {key}: {value}")
 
-# Running the optimisation
-if __name__ == "__main__":
-#     # Load dataset
-#     dataset = ButterflyDataset()
+    # Return best parameters for testing
+    return trial
 
-#     # Create train-val split
-#     train_size = int(0.8 * len(dataset))
-#     val_size = len(dataset) - train_size
-#     train_data, val_data = torch.utils.data.random_split(dataset, [train_size, val_size])
+def setup_tuning(dataset, name, model):
+    # Global variable to track which model is being tuned
+    global MODEL_NAME, train_data
+    MODEL_NAME = name
 
-#     # Global variable to track which model is being tuned
-#     MODEL_NAME = "Butterfly"
-
-#     start_opt()
-
-    # Load dataset
-    dataset = BrainTumorDataset()
+    print(f"Training on {name} Dataset")
 
     # Create train-val split
     train_size = int(0.8 * len(dataset))
-    val_size = len(dataset) - train_size
-    train_data, val_data = torch.utils.data.random_split(dataset, [train_size, val_size])
+    test_size = len(dataset) - train_size
+    train_data, test_data = torch.utils.data.random_split(dataset, [train_size, test_size]) 
 
-    # Global variable to track which model is being tuned
-    MODEL_NAME = "BrainTumor"
+    best_trial = start_opt()
 
-    start_opt()
+    # Define dataloaders
+    train_loader = torch.utils.data.DataLoader(train_data,
+                                                batch_size=best_trial["batch_size"],
+                                                shuffle=True,
+                                                )
+    test_loader = torch.utils.data.DataLoader(test_data,
+                                            batch_size=256,
+                                            shuffle=False,
+                                            )
 
-    
+    train_model(
+        model(input_size=dataset.input_size, dropout=best_trial["dropout"]),
+        train_loader=train_loader,
+        val_loader=test_loader,
+        n_epochs=best_trial["epochs"],
+        learning_rate=best_trial["lr"],
+        weight_decay=best_trial["weight_decay"],
+        output_file=f"BEST_{name}"
+    )
 
+# Running the optimisation
+if __name__ == "__main__":
+    setup_tuning(Animal10Dataset(), "Animals", Animal10Net)
+    setup_tuning(ButterflyDataset(), "Butterfly", ButterflyNet)
+    setup_tuning(BrainTumorDataset(), "BrainTumor", BrainTumorNet)
     
 
