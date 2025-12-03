@@ -175,20 +175,43 @@ class Animal10Dataset():
                     all_labels.append(translate[animal_label]) # The folder name is the label
 
 
-        self.filepaths = np.array(all_filepaths)
+        cache_transform = transforms.Compose([
+            transforms.Resize((256, 256)),
+            transforms.ToTensor(), # Converts image to a tensor (H, W, C) -> (C, H, W) and scales to [0, 1]
+        ])
+
+        print("Starting in-memory image caching...")
+        
+        for img_path in all_filepaths: # Iterate through the collected paths
+            try:
+                # Load, convert to RGB, and apply basic transforms for caching
+                image = Image.open(img_path).convert('RGB')
+                image_tensor = cache_transform(image)
+                
+                # Store the tensor in the list
+                self.cached_images.append(image_tensor)
+                
+            except Exception as e:
+                print(f"Skipping corrupted file: {img_path}. Error: {e}")
+                # You must ensure the filepaths and labels lists are synchronized if you skip a file!
+                
+        print(f"Caching complete. {len(self.cached_images)} tensors loaded into RAM.")
+        
+        # --- Your existing code to finalize attributes ---
+        self.filepaths = np.array(all_filepaths) # Keep this for reference
+        # ... (rest of the __init__ including LabelEncoder) ...
+        
+        # Store augmentations separately
+        self.transform = transforms.compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.5),
+            transforms.RandomRotation(30)
+        ]) # Keep the augmentation pipeline if passed
+
+
         self.labels = np.array(all_labels)
 
-        self.transform = transforms.Compose(
-            [
-                transforms.Resize((256,256)),
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomVerticalFlip(p=0.5),
-                # transforms.RandomRotation(30),
-                transforms.ToTensor(),
-                # transforms.Normalize(mean = [0.485, 0.456, 0.406],std = [0.229, 0.224, 0.225])
-            ]
-        )
-
+ 
         self.input_size = (3,256,256)
 
         self.encoder=LabelEncoder()
@@ -200,17 +223,14 @@ class Animal10Dataset():
         return len(self.filepaths)
 
     def __getitem__(self, idx):
-        # This function defines what happens when you index the dataset (e.g., dataset[5])
-        img_path = self.filepaths[idx]
+        # Retrieve the pre-loaded tensor and label directly from memory
+        image_tensor = self.cached_images[idx]
         label_id = self.labels[idx]
 
-        # Read Image (PIL is standard for PyTorch transforms)
-        image = Image.open(img_path).convert('RGB') # CNNs use 3-channel RGB images
-        
-        # Apply Transformations
+        # Apply any remaining augmentation transforms (e.g., RandomFlip, RandomRotation)
         if self.transform:
-            image = self.transform(image)
+            image_tensor = self.transform(image_tensor)
 
-        # Return the image tensor and its encoded label
-        return image, torch.tensor(label_id, dtype=torch.long)
+        # Return the tensor and label
+        return image_tensor, torch.tensor(label_id, dtype=torch.long)
     
