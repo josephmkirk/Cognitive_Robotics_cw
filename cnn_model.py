@@ -163,7 +163,7 @@ class Animal10Net(nn.Module):
         super(Animal10Net, self).__init__()
 
         # Output layer sizes
-        out_sizes = [16,32,64,96,128]
+        out_sizes = [16,32,64,96]
 
         self.conv1 = nn.Conv2d(input_size[0], out_sizes[0], kernel_size=3, padding=1)
         self.batchnorm1 = nn.BatchNorm2d(out_sizes[0])
@@ -177,19 +177,20 @@ class Animal10Net(nn.Module):
         self.conv4 = nn.Conv2d(out_sizes[2], out_sizes[3], kernel_size=3, padding=1)
         self.batchnorm4 = nn.BatchNorm2d(out_sizes[3])
 
-        self.conv5 = nn.Conv2d(out_sizes[3], out_sizes[4], kernel_size=3, padding=1)
-        # self.batchnorm4 = nn.BatchNorm2d(out_sizes[3])
 
         self.pool = nn.MaxPool2d(2, 2)
 
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
         self.dropout = nn.Dropout(dropout)
 
-        FINAL_DIM_1 = input_size[1] // (2 ** len(out_sizes))
-        FINAL_DIM_2 = input_size[2] // (2 ** len(out_sizes))
-        FC_INPUT_FEATURES = out_sizes[-1] * FINAL_DIM_1 * FINAL_DIM_2
+        # FINAL_DIM_1 = input_size[1] // (2 ** len(out_sizes))
+        # FINAL_DIM_2 = input_size[2] // (2 ** len(out_sizes))
+        # FC_INPUT_FEATURES = out_sizes[-1] * FINAL_DIM_1 * FINAL_DIM_2
 
-        self.fc1 = nn.Linear(FC_INPUT_FEATURES, 64)  # flatten after conv+pool
-        self.fc2 = nn.Linear(64, 32)
+        FC_INPUT_FEATURES = out_sizes[-1]
+
+        self.fc1 = nn.Linear(FC_INPUT_FEATURES, 48)  # flatten after conv+pool
+        self.fc2 = nn.Linear(48, 32)
         self.fc3 = nn.Linear(32, 16)
         self.fc4 = nn.Linear(16, num_classes)
 
@@ -214,11 +215,7 @@ class Animal10Net(nn.Module):
         x = F.relu(x)
         x = self.pool(x)
 
-        x = self.conv5(x)
-        # x = self.batchnorm4(x)
-        x = F.relu(x)
-        x = self.pool(x)
-
+        x = self.global_pool(x)
         x = torch.flatten(x, 1)
 
         x = self.fc1(x)

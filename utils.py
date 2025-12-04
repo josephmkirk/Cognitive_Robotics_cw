@@ -127,7 +127,7 @@ class BrainTumorDataset():
     
 
 class Animal10Dataset():
-    def __init__(self):
+    def __init__(self, caching=False):
         # Kagglehub API token
         os.environ['KAGGLE_API_TOKEN'] = 'KGAT_3bd7023f3e62101d2b008a2f3b4168de'
 
@@ -135,6 +135,7 @@ class Animal10Dataset():
         self.dataset_path = kagglehub.dataset_download("alessiocorrado99/animals10")
 
         self.name = "Animal10"
+        self.caching = caching
 
         translate = {
             "cane": "dog",
@@ -192,45 +193,53 @@ class Animal10Dataset():
         print(f"Original dataset size: {len(full_df)}")
         print(f"Reduced dataset size (approx 75%): {len(df_reduced)}")
 
+        if caching:
+            cache_transform = transforms.Compose([
+                transforms.Resize((256, 256)),
+                transforms.ToTensor(), # Converts image to a tensor (H, W, C) -> (C, H, W) and scales to [0, 1]
+            ])
 
-        cache_transform = transforms.Compose([
-            transforms.Resize((256, 256)),
-            transforms.ToTensor(), # Converts image to a tensor (H, W, C) -> (C, H, W) and scales to [0, 1]
-        ])
+            self.cached_images = []
 
-        self.cached_images = []
+            print("Starting in-memory image caching...")
+            counter = 0
+            for img_path in df_reduced["filepath"]: # Iterate through the collected paths
+                try:
+                    # Load, convert to RGB, and apply basic transforms for caching
+                    image = Image.open(img_path).convert('RGB')
+                    image_tensor = cache_transform(image)
+                    
+                    # Store the tensor in the list
+                    self.cached_images.append(image_tensor)
+                    
+                except Exception as e:
+                    print(f"Skipping corrupted file: {img_path}. Error: {e}")
+                    # You must ensure the filepaths and labels lists are synchronized if you skip a file!
 
-        print("Starting in-memory image caching...")
-        counter = 0
-        for img_path in df_reduced["filepath"]: # Iterate through the collected paths
-            try:
-                # Load, convert to RGB, and apply basic transforms for caching
-                image = Image.open(img_path).convert('RGB')
-                image_tensor = cache_transform(image)
-                
-                # Store the tensor in the list
-                self.cached_images.append(image_tensor)
-                
-            except Exception as e:
-                print(f"Skipping corrupted file: {img_path}. Error: {e}")
-                # You must ensure the filepaths and labels lists are synchronized if you skip a file!
+                if counter % 1000 == 0:
+                    print(f"[{counter}/{len(df_reduced['filepath'])}] in cache")
+                counter += 1            
 
-            if counter % 1000 == 0:
-                print(f"[{counter}/{len(df_reduced["filepath"])}] in cache")
-            counter += 1            
+            print(f"Caching complete. {len(self.cached_images)} tensors loaded into RAM.")
+            
+            
+            # Store augmentations separately
+            self.transform = transforms.Compose([
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomVerticalFlip(p=0.5),
+                transforms.RandomRotation(30)
+            ]) # Keep the augmentation pipeline if passed
+        else:
 
-        print(f"Caching complete. {len(self.cached_images)} tensors loaded into RAM.")
-        
-        # --- Your existing code to finalize attributes ---
-        self.filepaths = np.array(df_reduced["filepath"]) # Keep this for reference
-        
-        # Store augmentations separately
-        self.transform = transforms.Compose([
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomVerticalFlip(p=0.5),
-            transforms.RandomRotation(30)
-        ]) # Keep the augmentation pipeline if passed
+            self.transform = transforms.Compose([
+                transforms.Resize((256, 256)),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomVerticalFlip(p=0.5),
+                transforms.RandomRotation(30),
+                transforms.ToTensor()
+            ]) # Keep the augmentation pipeline if passed
 
+        self.filepaths = np.array(df_reduced["filepath"])
         self.labels = np.array(df_reduced["label"])
  
         self.input_size = (3,256,256)
@@ -244,14 +253,20 @@ class Animal10Dataset():
         return len(self.filepaths)
 
     def __getitem__(self, idx):
-        # Retrieve the pre-loaded tensor and label directly from memory
-        image_tensor = self.cached_images[idx]
+        if self.caching:
+            # Retrieve the pre-loaded tensor and label directly from memory
+            image = self.cached_images[idx]
+        else:
+            img_path = self.filepaths[idx]
+            # Read Image (PIL is standard for PyTorch transforms)
+            image = Image.open(img_path).convert('RGB') # CNNs use 3-channel RGB images
+        
+            
+        if self.transform:
+            image = self.transform(image)
+
         label_id = self.labels[idx]
 
-        # Apply any remaining augmentation transforms (e.g., RandomFlip, RandomRotation)
-        if self.transform:
-            image_tensor = self.transform(image_tensor)
-
         # Return the tensor and label
-        return image_tensor, torch.tensor(label_id, dtype=torch.long)
+        return image, torch.tensor(label_id, dtype=torch.long)
     
