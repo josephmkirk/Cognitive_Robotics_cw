@@ -287,11 +287,15 @@ class CaltechDataset():
             
         categories = [
             "anchor",
+            "accordian",
             "dollar_bill",
             "metronome",
             "helicopter",
+            "barrel",
+            "ceiling_fan"
             "Motorbikes",
             "airplanes",
+            "cannon",
             "binocular",
             "chandelier",
             "electric_guitar",
@@ -373,15 +377,15 @@ class CaltechDataset():
             
             # Store augmentations separately
             self.transform = transforms.Compose([
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomVerticalFlip(p=0.5)
+                # transforms.RandomHorizontalFlip(p=0.5),
+                # transforms.RandomVerticalFlip(p=0.5)
             ]) # Keep the augmentation pipeline if passed
         else:
 
             self.transform = transforms.Compose([
                 # transforms.Resize((256, 256)),
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomVerticalFlip(p=0.5),
+                # transforms.RandomHorizontalFlip(p=0.5),
+                # transforms.RandomVerticalFlip(p=0.5),
                 transforms.ToTensor()
             ]) # Keep the augmentation pipeline if passed
 

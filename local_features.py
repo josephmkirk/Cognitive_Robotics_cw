@@ -33,6 +33,8 @@ def get_descriptors(X_values):
 
         counter += 1
     
+    print(f"Image: [{counter}/{X_values.shape[0]}]")
+
     return all_descriptors
 
 def train_kmeans_model(all_descriptors):
@@ -40,7 +42,7 @@ def train_kmeans_model(all_descriptors):
     all_descriptors_stacked = np.vstack(all_descriptors)
 
     # Define K
-    K = 5000  
+    K = 1000  
     print(f"Starting K-Means clustering with K = {K}...")
 
     # Initialize the K-Means model
@@ -52,7 +54,7 @@ def train_kmeans_model(all_descriptors):
 
     return kmeans
     
-def generate_features(all_descriptors, kmeans, K=5000):
+def generate_features(all_descriptors, kmeans, K=1000):
 
     features = [] # List to hold the K-dimensional histograms (the features)
 
