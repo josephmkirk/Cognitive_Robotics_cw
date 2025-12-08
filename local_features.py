@@ -6,7 +6,7 @@ from sklearn.svm import SVC
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 
-from utils import ButterflyDataset, BrainTumorDataset, Animal10Dataset
+from utils import Animal10Dataset, CaltechDataset
 
 def get_descriptors(X_values):
     all_descriptors = []  # The "Soup" of all features
@@ -44,7 +44,7 @@ def train_kmeans_model(all_descriptors):
     print(f"Starting K-Means clustering with K = {K}...")
 
     # Initialize the K-Means model
-    kmeans = MiniBatchKMeans(n_clusters=K, init='k-means++', n_init='auto', random_state=42, verbose=0)
+    kmeans = MiniBatchKMeans(n_clusters=K, init="k-means++", n_init="auto", random_state=42, verbose=0)
     # Fit the model to the stacked descriptors
     kmeans.fit(all_descriptors_stacked)
 
@@ -100,7 +100,7 @@ def main(dataset):
     # C: Regularization parameter (controls margin vs. misclassification trade-off)
     # kernel: RBF is a common, powerful choice
     # decision_function_shape='ovr': One-vs-Rest, suitable for multi-class problems (75 categories)
-    svm = SVC(C=1.0, kernel='rbf', decision_function_shape='ovr', random_state=42)
+    svm = SVC(C=1.0, kernel="rbf", decision_function_shape="ovr", random_state=42)
 
     # Train the SVM on the BoVW histograms
     svm.fit(train_features, y_train)
@@ -123,6 +123,5 @@ def main(dataset):
     print(f"Classification report successfully saved to {output_file}")
 
 if __name__ == "__main__":
+    main(CaltechDataset())
     main(Animal10Dataset())
-    main(ButterflyDataset())
-    main(BrainTumorDataset())
