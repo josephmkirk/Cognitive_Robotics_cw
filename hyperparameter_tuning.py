@@ -189,7 +189,7 @@ def setup_tuning(dataset, name, model):
 
 # Running the optimisation
 if __name__ == "__main__":
-    setup_tuning(Animal10Dataset(caching=True), "Animals", Animal10Net)
-    setup_tuning(CaltechDataset(cachiing=True), "Caltech", Animal10Net)
+    setup_tuning(Animal10Dataset(caching=False), "Animals", Animal10Net)
+    setup_tuning(CaltechDataset(cachiing=False), "Caltech", Animal10Net)
     
 
