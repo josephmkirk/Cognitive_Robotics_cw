@@ -59,7 +59,7 @@ class Animal10Net(nn.Module):
         x = self.pool(x)
 
         x = self.conv5(x)
-        x = self.batchnorm4(x)
+        x = self.batchnorm5(x)
         x = F.relu(x)
 
         x = self.conv6(x)
