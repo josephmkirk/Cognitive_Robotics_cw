@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import pandas as pd
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.svm import SVC
 
@@ -111,18 +112,15 @@ def main(dataset):
 
     y_pred = svm.predict(test_features)
     # You can then use metrics like classification_report, accuracy_score, etc. to evaluate performance.
-    report = classification_report(y_test, y_pred, target_names=dataset.encoder.classes_)
+    report = classification_report(y_test, y_pred, target_names=dataset.encoder.classes_, output_dict=True)
 
-    # Define the output file path
-    output_file = f'{dataset.name}_classification_report.txt'
+    df_report = pd.DataFrame(report).T
 
-    # Write the string content to the file
-    with open(output_file, 'w') as f:
-        f.write("Classification Report\n") # Optional header
-        f.write("-" * 30 + "\n")
-        f.write(report)
+    # --- Save DataFrame to CSV ---
+    csv_filename = f'{dataset.name}_report_metrics.csv'
+    df_report.to_csv(csv_filename, index=True)
 
-    print(f"Classification report successfully saved to {output_file}")
+    print(f"Classification report successfully saved to {csv_filename}")
 
 if __name__ == "__main__":
     main(CaltechDataset())
