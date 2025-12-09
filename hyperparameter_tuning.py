@@ -8,8 +8,8 @@ from torch.utils.data import DataLoader, Subset
 
 from sklearn.model_selection import KFold
 
-from cnn_model import ButterflyNet, BrainTumorNet, Animal10Net
-from utils import ButterflyDataset, BrainTumorDataset, Animal10Dataset
+from cnn_model import Animal10Net
+from utils import Animal10Dataset, CaltechDataset
 from train_cnn import train_model
 
 import numpy as np
@@ -63,14 +63,7 @@ def objective(trial):
                                 )
 
         # 3. Model, loss, optimizer (MUST be re-initialized for each fold)
-        if MODEL_NAME == "Butterfly":
-            # Re-initialize the model to ensure independent training for each fold
-            model = ButterflyNet(input_size=(3,224,224), dropout=dropout).to(device)
-        elif MODEL_NAME == "BrainTumor":
-            model = BrainTumorNet(input_size=(3,256,256), dropout=dropout).to(device)
-        elif MODEL_NAME == "Animals":
-            model = Animal10Net(input_size=(3,256,256), dropout=dropout).to(device)
-
+        model = Animal10Net(dropout=dropout).to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
         # ---- Training + Validation Loop for the current fold ----
@@ -210,8 +203,7 @@ def setup_tuning(dataset, name, model):
 
 # Running the optimisation
 if __name__ == "__main__":
-    setup_tuning(Animal10Dataset(), "Animals", Animal10Net)
-    setup_tuning(ButterflyDataset(), "Butterfly", ButterflyNet)
-    setup_tuning(BrainTumorDataset(), "BrainTumor", BrainTumorNet)
+    setup_tuning(Animal10Dataset(caching=True), "Animals", Animal10Net)
+    setup_tuning(CaltechDataset(cachiing=True), "Caltech", Animal10Net)
     
 
