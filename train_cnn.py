@@ -10,8 +10,8 @@ from torchvision import transforms
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
 
-from cnn_model import ButterflyNet, BrainTumorNet, Animal10Net
-from utils import ButterflyDataset, BrainTumorDataset, Animal10Dataset
+from cnn_model import Animal10Net
+from utils import CaltechDataset, Animal10Dataset
 
 from pathlib import Path
 
@@ -150,16 +150,12 @@ def evaluate(model, data_loader, criterion, device):
 
 
 def main(task):
-    if task == "Butterfly":
-        dataset = ButterflyDataset()
-        model = ButterflyNet(dataset.input_size)
-
-    elif task == "BrainTumor":
-        dataset = BrainTumorDataset()
-        model = BrainTumorNet(dataset.input_size)
-    elif task == "Animals":
+    if task == "Animals":
         dataset = Animal10Dataset()
-        model = Animal10Net(dataset.input_size)
+        model = Animal10Net(num_classes=10)
+    if task == "Caltech":
+        dataset = CaltechDataset()
+        model = Animal10Net(num_classes=99)
 
 
     # Define train/val/test split
@@ -193,6 +189,5 @@ def main(task):
     
 
 if __name__ == "__main__":
-    # main("Butterfly")
-    # main("BrainTumor")
     main("Animals")
+    main("Caltech")

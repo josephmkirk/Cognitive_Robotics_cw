@@ -44,7 +44,6 @@ class ButterflyNet(nn.Module):
         x = self.conv1(x)
         # x = self.batchnorm1(x)
         x = F.relu(x)
-        x = self.pool(x)
         
         x = self.conv2(x)
         # x = self.batchnorm2(x)
@@ -54,7 +53,7 @@ class ButterflyNet(nn.Module):
         x = self.conv3(x)
         # x = self.batchnorm3(x)
         x = F.relu(x)
-        x = self.pool(x)
+
 
         x = self.conv4(x)
         # x = self.batchnorm4(x)
@@ -64,7 +63,6 @@ class ButterflyNet(nn.Module):
         x = self.conv5(x)
         # x = self.batchnorm5(x)
         x = F.relu(x)
-        x = self.pool(x)
 
         x = self.conv6(x)
         # x = self.batchnorm5(x)
@@ -86,7 +84,7 @@ class ButterflyNet(nn.Module):
 
 
 class Animal10Net(nn.Module):
-    def __init__(self, input_size, num_classes=10, dropout=0.1):
+    def __init__(self, num_classes, dropout=0.1):
         super(Animal10Net, self).__init__()
 
         # Output layer sizes
@@ -140,6 +138,11 @@ class Animal10Net(nn.Module):
         # x = self.batchnorm4(x)
         x = F.relu(x)
         x = self.pool(x)
+
+        x = self.conv5(x)
+        # x = self.batchnorm4(x)
+        x = F.relu(x)
+
 
         x = self.global_pool(x)
         x = torch.flatten(x, 1)

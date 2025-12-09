@@ -227,8 +227,6 @@ class CaltechDataset():
         # Create a new list containing elements from my_list ONLY IF they are NOT in items_to_remove
         categories = [item for item in categories if item not in items_to_remove]
 
-        print(f"All categories: {categories}")
-
         for category in categories:
 
             # Construct the full path to the current animal folder
