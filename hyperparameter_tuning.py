@@ -59,6 +59,8 @@ def objective(trial):
     # ---- Training + Validation Loop for the current fold ----
     for epoch in range(epochs):
         
+        print(f"Epoch [{epoch+1}/{epochs}]")
+
         # ----- Training Step (Identical to your original code) -----
         model.train()
         for x, y in train_loader:
@@ -92,6 +94,7 @@ def objective(trial):
 
             if trial.should_prune():
                 raise optuna.exceptions.TrialPruned()
+    print(f"Epoch [{epoch+1}/{epochs}], accuracy: {accuracy}")
 
     return accuracy
 
