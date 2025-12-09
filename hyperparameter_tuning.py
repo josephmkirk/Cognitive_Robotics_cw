@@ -146,7 +146,7 @@ def start_opt():
         pruner=optuna.pruners.MedianPruner()
     )
 
-    study.optimize(objective, n_trials=2)
+    study.optimize(objective, n_trials=50)
 
     # Save plots
     save_study_plots(study)    
