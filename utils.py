@@ -62,70 +62,6 @@ class ButterflyDataset():
         # Return the image tensor and its encoded label
         return image, torch.tensor(label_id, dtype=torch.long)
 
-class BrainTumorDataset():
-    def __init__(self):
-        # Kagglehub API token
-        os.environ['KAGGLE_API_TOKEN'] = 'KGAT_3bd7023f3e62101d2b008a2f3b4168de'
-
-        # Download latest version, returns dataset location
-        self.dataset_path = kagglehub.dataset_download("preetviradiya/brian-tumor-dataset")
-
-        self.name = "BrainTumor"
-
-        df = pd.read_csv(f"{self.dataset_path}/metadata_rgb_only.csv")
-        df['filename'] = df.apply(self.create_filepath, axis=1)
-
-        self.filepaths = np.array(df["filename"])
-        self.labels = np.array(df["class"])
-
-        self.transform = transforms.Compose(
-            [
-                transforms.Resize((256,256)),
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomVerticalFlip(p=0.5),
-                transforms.RandomRotation(30),
-                transforms.ToTensor(),
-                transforms.Normalize(mean = [0.485, 0.456, 0.406],std = [0.229, 0.224, 0.225])
-            ]
-        )
-
-        self.input_size = (3,256,256)
-
-        self.encoder=LabelEncoder()
-        self.labels = self.encoder.fit_transform(np.array(self.labels))
-
-    def create_filepath(self, row):
-        """Function to calculate the filepath based on the row's class."""
-        if row['class'] == 'tumor':
-            folder = 'Brain Tumor'
-        elif row['class'] == 'normal':
-            folder = 'Healthy'
-
-        return os.path.join(
-            f"{self.dataset_path}/Brain Tumor Data Set/Brain Tumor Data Set/{folder}",
-            row['image']
-        )
-
-    def __len__(self):
-        # Returns the total number of samples (images) in the dataset
-        return len(self.filepaths)
-
-    def __getitem__(self, idx):
-        # This function defines what happens when you index the dataset (e.g., dataset[5])
-        img_path = self.filepaths[idx]
-        label_id = self.labels[idx]
-
-        # Read Image (PIL is standard for PyTorch transforms)
-        image = Image.open(img_path).convert('RGB') # CNNs use 3-channel RGB images
-        
-        # Apply Transformations
-        if self.transform:
-            image = self.transform(image)
-        
-        # Return the image tensor and its encoded label
-        return image, torch.tensor(label_id, dtype=torch.long)
-    
-
 class Animal10Dataset():
     def __init__(self, caching=False):
         # Kagglehub API token
@@ -277,40 +213,26 @@ class CaltechDataset():
         os.environ['KAGGLE_API_TOKEN'] = 'KGAT_3bd7023f3e62101d2b008a2f3b4168de'
 
         # Download latest version, returns dataset location
-        self.dataset_path = kagglehub.dataset_download("imbikramsaha/caltech-101")
+        self.dataset_path = f"{kagglehub.dataset_download('imbikramsaha/caltech-101')}/caltech-101"
 
-        self.name = "Animal10"
+        self.name = "Caltech101"
         self.caching = caching
 
         all_filepaths = []
         all_labels = []
             
-        categories = [
-            "anchor",
-            "accordian",
-            "dollar_bill",
-            "metronome",
-            "helicopter",
-            "barrel",
-            "ceiling_fan"
-            "Motorbikes",
-            "airplanes",
-            "cannon",
-            "binocular",
-            "chandelier",
-            "electric_guitar",
-            "grand_piano",
-            "soccer_ball",
-            "gramophone",
-            "laptop",
-            "watch"
-        ]
+        categories = os.listdir(self.dataset_path)
+        items_to_remove = ["BACKGROUND_Google", "Faces", "Faces_easy"]
 
-        print(f"Num categories: {len(categories)}")
+        # Create a new list containing elements from my_list ONLY IF they are NOT in items_to_remove
+        categories = [item for item in categories if item not in items_to_remove]
+
+        print(f"All categories: {categories}")
 
         for category in categories:
+
             # Construct the full path to the current animal folder
-            folder_path = os.path.join(f"{self.dataset_path}/caltech-101", category)
+            folder_path = os.path.join(f"{self.dataset_path}", category)
 
             # Check if the folder actually exists before trying to read it
             if not os.path.isdir(folder_path):
