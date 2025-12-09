@@ -52,7 +52,7 @@ def train_kmeans_model(all_descriptors, K):
     print("Clustering complete.")
     return kmeans
     
-def generate_features(all_descriptors, kmeans, K=1000):
+def generate_features(all_descriptors, kmeans, n):
 
     features = [] # List to hold the K-dimensional histograms (the features)
 
@@ -61,21 +61,21 @@ def generate_features(all_descriptors, kmeans, K=1000):
         # This returns an array of size (Number of descriptors) containing cluster indices (0 to K-1)
         visual_word_indices = kmeans.predict(descriptors)
 
-        # 3. Histogram Creation: Count the occurrences of each visual word
+        # Histogram Creation: Count the occurrences of each visual word
         # The result is a K-dimensional vector representing the image
-        histogram, _ = np.histogram(visual_word_indices, bins=range(K + 1))
+        histogram, _ = np.histogram(visual_word_indices, bins=range(n + 1))
         
-        # 4. Normalize the histogram (Optional but recommended for robust SVM training)
+        # Normalize the histogram (Optional but recommended for robust SVM training)
         histogram = histogram.astype("float")
         histogram /= (histogram.sum() + 1e-7) # L1 Normalization
         
-        # 5. Store the results
+        # Store the results
         features.append(histogram)
 
     
     return features
 
-def main(dataset, Ks):
+def main(dataset, Ks, Ns):
     X = dataset.filepaths
     y = dataset.labels
 
@@ -92,36 +92,36 @@ def main(dataset, Ks):
 
     for k in Ks:
         kmeans = train_kmeans_model(train_descriptors, k)
-        
-        train_features = generate_features(train_descriptors, kmeans)
-        test_features = generate_features(test_descriptors, kmeans)
 
-        print("Starting SVM training...")
+        for n in Ns:
+            train_features = generate_features(train_descriptors, kmeans, n)
+            test_features = generate_features(test_descriptors, kmeans, n)
 
-        # Initialize the SVM classifier
-        svm = SVC(C=1.0, kernel="rbf", decision_function_shape="ovr", random_state=42)
+            print("Starting SVM training...")
 
-        # Train the SVM on the BoVW histograms
-        svm.fit(train_features, y_train)
-        print("SVM training complete.")
-        y_pred = svm.predict(test_features)
+            # Initialize the SVM classifier
+            svm = SVC(C=1.0, kernel="rbf", decision_function_shape="ovr", random_state=42)
 
-        # Generate report
-        report = classification_report(y_test, y_pred, target_names=dataset.encoder.classes_, output_dict=True)
-        df_report = pd.DataFrame(report).T
+            # Train the SVM on the BoVW histograms
+            svm.fit(train_features, y_train)
+            print("SVM training complete.")
+            y_pred = svm.predict(test_features)
 
-        # Save Report to CSV
-        outdir=f"Local_Feature_Results/{dataset.name}"
+            # Generate report
+            report = classification_report(y_test, y_pred, target_names=dataset.encoder.classes_, output_dict=True)
+            df_report = pd.DataFrame(report).T
 
-        import os
-        os.makedirs(outdir, exist_ok=True)
+            # Save Report to CSV
+            outdir=f"Local_Feature_Results/{dataset.name}"
 
-        csv_filename = f'{outdir}/report_metrics_k_{k}.csv'
-        df_report.to_csv(csv_filename, index=True)
+            import os
+            os.makedirs(outdir, exist_ok=True)
 
-        print(f"Classification report successfully saved to {csv_filename}")
+            csv_filename = f'{outdir}/report_metrics_k_{k}_n_{n}.csv'
+            df_report.to_csv(csv_filename, index=True)
+
+            print(f"Classification report successfully saved to {csv_filename}")
 
 if __name__ == "__main__":
-    Ks = [1000, 2000, 5000, 10000, 15000]
-    main(CaltechDataset(), Ks)
-    main(Animal10Dataset(), Ks)
+    main(CaltechDataset(), Ks=[500, 1000, 2000], Ns=[500, 1000, 2000])
+    main(Animal10Dataset(), Ks=[500, 1000, 2000], Ns=[500, 1000, 2000])

@@ -63,7 +63,11 @@ def objective(trial):
                                 )
 
         # 3. Model, loss, optimizer (MUST be re-initialized for each fold)
-        model = Animal10Net(dropout=dropout).to(device)
+        if MODEL_NAME == "Animals":
+            model = Animal10Net(num_classes=10, dropout=dropout).to(device)
+        elif MODEL_NAME == "Caltech":
+            model = Animal10Net(num_classes=99, dropout=dropout).to(device)
+
         optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
         # ---- Training + Validation Loop for the current fold ----
