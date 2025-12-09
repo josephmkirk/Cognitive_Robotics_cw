@@ -28,93 +28,72 @@ def objective(trial):
     print(f"Using: {device}")
     criterion = nn.CrossEntropyLoss()
     
-    # ---- 5-Fold Cross-Validation Setup ----
-    N_SPLITS = 5
-    kf = KFold(n_splits=N_SPLITS, shuffle=True, random_state=42)
-    
-    # Store validation accuracy for each fold
-    fold_accuracies = []
+    train_size = int(0.8 * len(train_data))
+    val_size = len(train_data) - train_size
+    train_sub, val_sub = torch.utils.data.random_split(train_data, [train_size, val_size])
 
-    # Get the indices of the full dataset
-    indices = np.arange(len(train_data))
-    
-    # Iterate through each fold
-    for fold, (train_index, val_index) in enumerate(kf.split(indices)):
-        print(f"Starting fold [{fold+1}/{N_SPLITS}]")
-
-        # 1. Create Data Subsets for the current fold
-        # Subset creates a view of the original dataset using the indices
-        train_subset = Subset(train_data, train_index)
-        val_subset = Subset(train_data, val_index)
         
-        # 2. Create DataLoaders for the current fold
-        train_loader = DataLoader(train_subset,
-                                  batch_size=batch_size,
-                                  shuffle=True,
-                                  num_workers=os.cpu_count(),
-                                  pin_memory=True
-                                  )
-        # Note: Validation batch size is typically kept constant for testing
-        val_loader = DataLoader(val_subset,
-                                batch_size=256,
-                                shuffle=False,
+    # 2. Create DataLoaders for the current fold
+    train_loader = DataLoader(train_sub,
+                                batch_size=batch_size,
+                                shuffle=True,
                                 num_workers=os.cpu_count(),
                                 pin_memory=True
                                 )
+    # Note: Validation batch size is typically kept constant for testing
+    val_loader = DataLoader(val_sub,
+                            batch_size=256,
+                            shuffle=False,
+                            num_workers=os.cpu_count(),
+                            pin_memory=True
+                            )
 
-        # 3. Model, loss, optimizer (MUST be re-initialized for each fold)
-        if MODEL_NAME == "Animals":
-            model = Animal10Net(num_classes=10, dropout=dropout).to(device)
-        elif MODEL_NAME == "Caltech":
-            model = Animal10Net(num_classes=99, dropout=dropout).to(device)
+    # 3. Model, loss, optimizer (MUST be re-initialized for each fold)
+    if MODEL_NAME == "Animals":
+        model = Animal10Net(num_classes=10, dropout=dropout).to(device)
+    elif MODEL_NAME == "Caltech":
+        model = Animal10Net(num_classes=99, dropout=dropout).to(device)
 
-        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-        # ---- Training + Validation Loop for the current fold ----
-        for epoch in range(epochs):
-            
-            # ----- Training Step (Identical to your original code) -----
-            model.train()
-            for x, y in train_loader:
+    # ---- Training + Validation Loop for the current fold ----
+    for epoch in range(epochs):
+        
+        # ----- Training Step (Identical to your original code) -----
+        model.train()
+        for x, y in train_loader:
+            x, y = x.to(device), y.to(device)
+
+            optimizer.zero_grad()
+            pred = model(x)
+            loss = criterion(pred, y)
+            loss.backward()
+            optimizer.step()
+
+        # ----- Validation Step (Identical to your original code) -----
+        model.eval()
+        correct = 0
+        total = 0
+        
+        with torch.no_grad():
+            for x, y in val_loader:
                 x, y = x.to(device), y.to(device)
-
-                optimizer.zero_grad()
                 pred = model(x)
-                loss = criterion(pred, y)
-                loss.backward()
-                optimizer.step()
-
-            # ----- Validation Step (Identical to your original code) -----
-            model.eval()
-            correct = 0
-            total = 0
-            
-            with torch.no_grad():
-                for x, y in val_loader:
-                    x, y = x.to(device), y.to(device)
-                    pred = model(x)
-                    correct += (pred.argmax(1) == y).sum().item()
-                    total += y.size(0)
+                correct += (pred.argmax(1) == y).sum().item()
+                total += y.size(0)
 
             # Calculate accuracy for the current epoch and fold
-            fold_epoch_accuracy = correct / total
+            accuracy = correct / total
             
             # Report the intermediate result for pruning (using the current fold's accuracy)
             # Optuna's pruning logic will treat this as a single sequential training run, 
             # which is an acceptable approximation for CV
-            trial.report(fold_epoch_accuracy, epoch * N_SPLITS + fold) 
+            trial.report(accuracy, epoch) 
 
             if trial.should_prune():
                 raise optuna.exceptions.TrialPruned()
 
-        # Store the final accuracy from the last epoch of this fold
-        fold_accuracies.append(fold_epoch_accuracy)
-        
-    # ---- Return the Final Metric ----
-    # The final metric for the Optuna trial is the average accuracy across all folds
-    average_accuracy = np.mean(fold_accuracies)
-    
-    return average_accuracy
+    return accuracy
 
 def save_study_plots(study):
     outdir=f"optuna_plots/{MODEL_NAME}"
