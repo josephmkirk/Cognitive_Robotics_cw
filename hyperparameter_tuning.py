@@ -94,7 +94,7 @@ def objective(trial):
 
             if trial.should_prune():
                 raise optuna.exceptions.TrialPruned()
-    print(f"Epoch [{epoch+1}/{epochs}], accuracy: {accuracy}")
+        print(f"Epoch [{epoch+1}/{epochs}], accuracy: {accuracy}")
 
     return accuracy
 
@@ -115,7 +115,7 @@ def save_study_plots(study):
     for name, func in plots.items():
         fig = func(study)
         fig.write_html(f"{outdir}/{name}.html")
-        fig.write_image(f"{outdir}/{name}.png")
+        # fig.write_image(f"{outdir}/{name}.png")
 
     # Save best hyperparameters
     trial = study.best_trial
