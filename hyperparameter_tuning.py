@@ -173,7 +173,7 @@ def setup_tuning(dataset, name, model):
     test_loader = torch.utils.data.DataLoader(test_data,
                                             batch_size=256,
                                             shuffle=False,
-                                            num_workers=os.cpu_count(),
+                                            num_workers=0,
                                             pin_memory=True
                                             )
 

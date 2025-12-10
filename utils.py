@@ -18,6 +18,7 @@ class Animal10Dataset():
         self.dataset_path = kagglehub.dataset_download("alessiocorrado99/animals10")
 
         self.name = "Animal10"
+        self.num_classes = 10
         self.caching = caching
 
         translate = {
@@ -163,6 +164,7 @@ class CaltechDataset():
         self.dataset_path = f"{kagglehub.dataset_download('imbikramsaha/caltech-101')}/caltech-101"
 
         self.name = "Caltech101"
+        self.num_classes = 99
         self.caching = caching
 
         all_filepaths = []

@@ -3,14 +3,16 @@ import numpy as np
 import torch
 import pandas as pd
 
+import random, math
+
 from torchsummary import summary
 from torch.utils.data import Subset
 from torchvision import transforms
 
-from sklearn.model_selection import KFold
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold, ParameterSampler, train_test_split
+from scipy.stats import uniform, randint, loguniform
 
-from cnn_model import Animal10Net
+from cnn_model import Net
 from utils import CaltechDataset, Animal10Dataset
 
 from pathlib import Path
@@ -21,7 +23,7 @@ def train_model(model,
                 n_epochs,
                 learning_rate=1e-3,
                 weight_decay=1e-6,
-                dropout=0.1,
+                save_metrics=False,
                 output_file="tmp",
                 input_size = (1,1,1)
                 ):
@@ -80,23 +82,24 @@ def train_model(model,
         val_loss_history.append(val_loss)
         val_accuracy_history.append(accuracy)
 
-    # Save performance metrics
-    df = pd.DataFrame()
+    if save_metrics:
+        # Save performance metrics
+        df = pd.DataFrame()
 
-    df["Train Loss"] = train_loss_history
-    df["Val Loss"] = val_loss_history
-    df["Accuracy"] = val_accuracy_history
+        df["Train Loss"] = train_loss_history
+        df["Val Loss"] = val_loss_history
+        df["Accuracy"] = val_accuracy_history
 
-    # Convert the string path to a Path object
-    p = Path("TestMetrics")
-    
-    # Use the mkdir() method
-    # parents=True creates parent directories if they don't exist.
-    # exist_ok=True prevents the error if the directory already exists.
-    p.mkdir(parents=True, exist_ok=True)
-    print(f"Directory 'TestMetrics' ensured to exist.")
+        # Convert the string path to a Path object
+        p = Path("TestMetrics")
+        
+        # Use the mkdir() method
+        # parents=True creates parent directories if they don't exist.
+        # exist_ok=True prevents the error if the directory already exists.
+        p.mkdir(parents=True, exist_ok=True)
+        print(f"Directory 'TestMetrics' ensured to exist.")
 
-    df = df.to_csv(f"TestMetrics/{output_file}.csv")
+        df = df.to_csv(f"TestMetrics/{output_file}.csv")
 
     return accuracy
 
@@ -149,45 +152,74 @@ def evaluate(model, data_loader, criterion, device):
     return avg_loss, accuracy
 
 
-def main(task):
-    if task == "Animals":
-        dataset = Animal10Dataset()
-        model = Animal10Net(num_classes=10)
-    if task == "Caltech":
-        dataset = CaltechDataset()
-        model = Animal10Net(num_classes=99)
+def sample_hyperparameters(num_trials):
+    """Generates a list of hyperparameter configurations using random sampling."""    
+
+    param_distributions = {
+        "epochs": randint(10, 51),
+        "learning_rate": loguniform(1e-5, 1e-1),
+        "weight_decay": loguniform(1e-6, 1e-3),
+        "dropout": uniform(0.0, 0.3),
+        "batch_size": [32, 64, 128, 256]
+    }
+    
+    # ParameterSampler generates 'n_iter' unique parameter settings
+    sampler = ParameterSampler(
+        param_distributions=param_distributions,
+        n_iter=num_trials,
+        random_state=42 # Set a seed for reproducible sampling
+    )
+
+    # Convert the generator output to a list of dictionaries
+    random_configs = list(sampler)
+    return random_configs
 
 
+def run_hyperparameter_search(model, dataset, hyperparameters):
     # Define train/val/test split
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
     train_data, val_data = torch.utils.data.random_split(dataset, [train_size, val_size])
 
-    batch_size = 16
-    
-    # Define dataloaders
-    train_loader = torch.utils.data.DataLoader(train_data,
-                                                batch_size=batch_size,
-                                                shuffle=True,
+    accuracies = []
+
+    for i, params in enumerate(hyperparameters):
+        # Define dataloaders
+        train_loader = torch.utils.data.DataLoader(train_data,
+                                                    batch_size=params["batch_size"],
+                                                    shuffle=True,
+                                                    num_workers=os.cpu_count(),
+                                                    pin_memory=True
+                                                    )
+        val_loader = torch.utils.data.DataLoader(val_data,
+                                                batch_size=params["batch_size"],
+                                                shuffle=False,
                                                 num_workers=os.cpu_count(),
                                                 pin_memory=True
                                                 )
-    val_loader = torch.utils.data.DataLoader(val_data,
-                                            batch_size=batch_size,
-                                            shuffle=False,
-                                            num_workers=os.cpu_count(),
-                                            pin_memory=True
-                                            )
+        
+        model.update_dropout(params["dropout"])
 
-    train_model(model,
-                train_loader,
-                val_loader,
-                n_epochs=10,
-                input_size=dataset.input_size,
-                output_file=task
-                )
-    
+        accuracy = train_model(model,
+                            train_loader,
+                            val_loader,
+                            n_epochs=params["epochs"],
+                            learning_rate=params["learning_rate"],
+                            weight_decay=params["weight_decay"],
+                            input_size=dataset.input_size
+                            )
+        print(f"Test [{i}/{len(hyperparameters)}], Accuracy: {accuracy}")
+        accuracies.append(accuracy)
+
+    df = pd.DataFrame(hyperparameters)
+    df["Accuracy"] = accuracies
+
+    df.to_csv(f"{dataset.name}_results.csv")
+
 
 if __name__ == "__main__":
-    main("Animals")
-    main("Caltech")
+    print("Running Hyperparameter Samples For Animal-10 Dataset")
+    run_hyperparameter_search(Net(num_classes=10), Animal10Dataset(), sample_hyperparameters(2))
+
+    print("Running Hyperparameter Samples For Caltech-101 Dataset")
+    run_hyperparameter_search(Net(num_classes=99), CaltechDataset(), sample_hyperparameters(2))

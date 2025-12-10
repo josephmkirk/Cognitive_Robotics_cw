@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn  # neural network modules
 import torch.nn.functional as F  # useful stateless functions
 
-class Animal10Net(nn.Module):
+class Net(nn.Module):
     def __init__(self, num_classes, dropout=0.1):
-        super(Animal10Net, self).__init__()
+        super(Net, self).__init__()
 
         # Output layer sizes
         out_sizes = [16,32,64,96,128,256]
@@ -36,6 +36,9 @@ class Animal10Net(nn.Module):
         self.fc2 = nn.Linear(256, 128)
         self.fc3 = nn.Linear(128, 128)
         self.fc4 = nn.Linear(128, num_classes)
+
+    def update_dropout(self, dropout):
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         x = self.conv1(x)
