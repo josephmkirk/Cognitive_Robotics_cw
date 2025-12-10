@@ -188,13 +188,13 @@ def run_hyperparameter_search(model, dataset, hyperparameters):
         train_loader = torch.utils.data.DataLoader(train_data,
                                                     batch_size=params["batch_size"],
                                                     shuffle=True,
-                                                    num_workers=os.cpu_count(),
+                                                    num_workers=4,
                                                     pin_memory=True
                                                     )
         val_loader = torch.utils.data.DataLoader(val_data,
                                                 batch_size=params["batch_size"],
                                                 shuffle=False,
-                                                num_workers=os.cpu_count(),
+                                                num_workers=0,
                                                 pin_memory=True
                                                 )
         
