@@ -69,6 +69,7 @@ def train_model(model,
 
     # Training loop
     for epoch in range(n_epochs):
+        print(f"Starting Epoch {epoch+1}...")
 
         train_loss, model = train(model, train_loader, optimizer, device, criterion)
         # Evaluate on validation set
@@ -184,6 +185,7 @@ def run_hyperparameter_search(model, dataset, hyperparameters):
     accuracies = []
 
     for i, params in enumerate(hyperparameters):
+        print(f"Parameters: {params}")
         # Define dataloaders
         train_loader = torch.utils.data.DataLoader(train_data,
                                                     batch_size=params["batch_size"],
