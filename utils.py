@@ -59,72 +59,17 @@ class Animal10Dataset():
                     all_filepaths.append(full_path)
                     all_labels.append(translate[animal_label]) # The folder name is the label
 
-        full_df = pd.DataFrame()
-        full_df["filepath"] = all_filepaths
-        full_df["label"] = all_labels
 
-        # Define the fraction of data you want to KEEP (75% or 0.75)
-        FRACTION_TO_KEEP = 1
+        self.transform = transforms.Compose([
+            transforms.Resize((256, 256)),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.5),
+            transforms.RandomRotation(30),
+            transforms.ToTensor()
+        ]) # Keep the augmentation pipeline if passed
 
-        # Use a fixed random state for reproducibility
-        RANDOM_STATE = 42
-
-        # Group the DataFrame by 'label' and sample 75% from each group
-        df_reduced = full_df.groupby('label', group_keys=False).apply(
-            lambda x: x.sample(frac=FRACTION_TO_KEEP, random_state=RANDOM_STATE)
-        )
-
-        print(f"Original dataset size: {len(full_df)}")
-        print(f"Reduced dataset size (approx {int(FRACTION_TO_KEEP*100)}%): {len(df_reduced)}")
-
-        if caching:
-            cache_transform = transforms.Compose([
-                transforms.Resize((256, 256)),
-                transforms.ToTensor(), # Converts image to a tensor (H, W, C) -> (C, H, W) and scales to [0, 1]
-            ])
-
-            self.cached_images = []
-
-            print("Starting in-memory image caching...")
-            counter = 0
-            for img_path in df_reduced["filepath"]: # Iterate through the collected paths
-                try:
-                    # Load, convert to RGB, and apply basic transforms for caching
-                    image = Image.open(img_path).convert('RGB')
-                    image_tensor = cache_transform(image)
-                    
-                    # Store the tensor in the list
-                    self.cached_images.append(image_tensor)
-                    
-                except Exception as e:
-                    print(f"Skipping corrupted file: {img_path}. Error: {e}")
-                    # You must ensure the filepaths and labels lists are synchronized if you skip a file!
-
-                if counter % 1000 == 0:
-                    print(f"[{counter}/{len(df_reduced['filepath'])}] in cache")
-                counter += 1            
-
-            print(f"Caching complete. {len(self.cached_images)} tensors loaded into RAM.")
-            
-            
-            # Store augmentations separately
-            self.transform = transforms.Compose([
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomVerticalFlip(p=0.5),
-                transforms.RandomRotation(30)
-            ]) # Keep the augmentation pipeline if passed
-        else:
-
-            self.transform = transforms.Compose([
-                transforms.Resize((256, 256)),
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomVerticalFlip(p=0.5),
-                transforms.RandomRotation(30),
-                transforms.ToTensor()
-            ]) # Keep the augmentation pipeline if passed
-
-        self.filepaths = np.array(df_reduced["filepath"])
-        self.labels = np.array(df_reduced["label"])
+        self.filepaths = np.array(all_filepaths)
+        self.labels = np.array(all_labels)
  
         self.input_size = (3,256,256)
 
@@ -195,69 +140,14 @@ class CaltechDataset():
                     # Store the data
                     all_filepaths.append(full_path)
                     all_labels.append(category) # The folder name is the label
+        
+        self.transform = transforms.Compose([
+            transforms.Resize((256, 256)),
+            transforms.ToTensor()
+        ]) # Keep the augmentation pipeline if passed
 
-        full_df = pd.DataFrame()
-        full_df["filepath"] = all_filepaths
-        full_df["label"] = all_labels
-
-        # Define the fraction of data you want to KEEP (75% or 0.75)
-        FRACTION_TO_KEEP = 1
-
-        # Use a fixed random state for reproducibility
-        RANDOM_STATE = 42
-
-        # Group the DataFrame by 'label' and sample 75% from each group
-        df_reduced = full_df.groupby('label', group_keys=False).apply(
-            lambda x: x.sample(frac=FRACTION_TO_KEEP, random_state=RANDOM_STATE)
-        )
-
-        print(f"Original dataset size: {len(full_df)}")
-        print(f"Reduced dataset size (approx {int(FRACTION_TO_KEEP*100)}%): {len(df_reduced)}")
-
-        if caching:
-            cache_transform = transforms.Compose([
-                transforms.Resize((256, 256)),
-                transforms.ToTensor(), # Converts image to a tensor (H, W, C) -> (C, H, W) and scales to [0, 1]
-            ])
-
-            self.cached_images = []
-
-            print("Starting in-memory image caching...")
-            counter = 0
-            for img_path in df_reduced["filepath"]: # Iterate through the collected paths
-                try:
-                    # Load, convert to RGB, and apply basic transforms for caching
-                    image = Image.open(img_path).convert('RGB')
-                    image_tensor = cache_transform(image)
-                    
-                    # Store the tensor in the list
-                    self.cached_images.append(image_tensor)
-                    
-                except Exception as e:
-                    print(f"Skipping corrupted file: {img_path}. Error: {e}")
-                    # You must ensure the filepaths and labels lists are synchronized if you skip a file!
-
-                if counter % 1000 == 0:
-                    print(f"[{counter}/{len(df_reduced['filepath'])}] in cache")
-                counter += 1            
-
-            print(f"Caching complete. {len(self.cached_images)} tensors loaded into RAM.")
-            
-            
-            # Store augmentations separately
-            self.transform = transforms.Compose([
-                # transforms.RandomHorizontalFlip(p=0.5),
-                # transforms.RandomVerticalFlip(p=0.5)
-            ]) # Keep the augmentation pipeline if passed
-        else:
-
-            self.transform = transforms.Compose([
-                transforms.Resize((256, 256)),
-                transforms.ToTensor()
-            ]) # Keep the augmentation pipeline if passed
-
-        self.filepaths = np.array(df_reduced["filepath"])
-        self.labels = np.array(df_reduced["label"])
+        self.filepaths = np.array(all_filepaths)
+        self.labels = np.array(all_labels)
  
         self.input_size = (3,256,256)
 
