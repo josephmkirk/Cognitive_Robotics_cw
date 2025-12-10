@@ -24,8 +24,7 @@ def train_model(model,
                 learning_rate=1e-3,
                 weight_decay=1e-6,
                 save_metrics=False,
-                output_file="tmp",
-                input_size = (1,1,1)
+                output_file="tmp"
                 ):
     
     # Set device
@@ -41,7 +40,6 @@ def train_model(model,
 
     # Initialize model
     model.to(device)
-    summary(model, input_size)
 
     # Initialize loss function
     criterion = torch.nn.CrossEntropyLoss()
@@ -207,8 +205,7 @@ def run_hyperparameter_search(model, dataset, hyperparameters):
                             val_loader,
                             n_epochs=params["epochs"],
                             learning_rate=params["learning_rate"],
-                            weight_decay=params["weight_decay"],
-                            input_size=dataset.input_size
+                            weight_decay=params["weight_decay"]
                             )
         print(f"Test [{i}/{len(hyperparameters)}], Accuracy: {accuracy}")
         accuracies.append(accuracy)

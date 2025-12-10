@@ -216,7 +216,7 @@ class CaltechDataset():
 
         if caching:
             cache_transform = transforms.Compose([
-                transforms.Resize(256),
+                transforms.Resize((256, 256)),
                 transforms.ToTensor(), # Converts image to a tensor (H, W, C) -> (C, H, W) and scales to [0, 1]
             ])
 
@@ -252,7 +252,7 @@ class CaltechDataset():
         else:
 
             self.transform = transforms.Compose([
-                transforms.Resize(256),
+                transforms.Resize((256, 256)),
                 transforms.ToTensor()
             ]) # Keep the augmentation pipeline if passed
 
