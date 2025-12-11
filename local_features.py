@@ -63,28 +63,20 @@ def generate_features(all_descriptors, kmeans, K=1000):
     features = [] # List to hold the K-dimensional histograms (the features)
 
     for descriptors in all_descriptors:
-        if descriptors.shape[0] == 0:
-            # If empty, the histogram is a zero vector of length K (kmeans.n_clusters)
-            histogram = np.zeros(kmeans.n_clusters, dtype=np.float64)
-            features.append(histogram)
+        # Quantization: Map descriptors to the K visual words
+        # This returns an array of size (Number of descriptors) containing cluster indices (0 to K-1)
+        visual_word_indices = kmeans.predict(descriptors)
 
-        else:
-            descriptors = descriptors.astype(np.float64)
-
-            # Quantization: Map descriptors to the K visual words
-            # This returns an array of size (Number of descriptors) containing cluster indices (0 to K-1)
-            visual_word_indices = kmeans.predict(descriptors)
-
-            # 3. Histogram Creation: Count the occurrences of each visual word
-            # The result is a K-dimensional vector representing the image
-            histogram, _ = np.histogram(visual_word_indices, bins=range(K + 1))
-            
-            # 4. Normalize the histogram (Optional but recommended for robust SVM training)
-            histogram = histogram.astype("float")
-            histogram /= (histogram.sum() + 1e-7) # L1 Normalization
-            
-            # 5. Store the results
-            features.append(histogram)
+        # 3. Histogram Creation: Count the occurrences of each visual word
+        # The result is a K-dimensional vector representing the image
+        histogram, _ = np.histogram(visual_word_indices, bins=range(K + 1))
+        
+        # 4. Normalize the histogram (Optional but recommended for robust SVM training)
+        histogram = histogram.astype("float")
+        histogram /= (histogram.sum() + 1e-7) # L1 Normalization
+        
+        # 5. Store the results
+        features.append(histogram)
 
     
     return features
