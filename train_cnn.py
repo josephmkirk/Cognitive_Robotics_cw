@@ -183,6 +183,8 @@ def run_hyperparameter_search(num_classes, dataset, hyperparameters):
     accuracies = []
 
     for i, params in enumerate(hyperparameters):
+        print(f"Test [{i+1}/{len(hyperparameters)}]")
+
         print(f"Parameters: {params}")
         # Define dataloaders
         train_loader = torch.utils.data.DataLoader(train_data,
@@ -207,11 +209,11 @@ def run_hyperparameter_search(num_classes, dataset, hyperparameters):
                             learning_rate=params["learning_rate"],
                             weight_decay=params["weight_decay"]
                             )
-        print(f"Test [{i}/{len(hyperparameters)}], Accuracy: {accuracy}")
+        print(f"Test [{i+1}/{len(hyperparameters)}], Accuracy: {accuracy}")
         accuracies.append(accuracy)
     
         # Overwrite each time
-        df = pd.DataFrame(hyperparameters)
+        df = pd.DataFrame(hyperparameters[:i])
         df["Accuracy"] = accuracies
 
         df.to_csv(f"{dataset.name}_results.csv")
