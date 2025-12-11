@@ -18,12 +18,14 @@ def get_descriptors(X_values):
     counter = 0
     print("Extracting SIFT features...")
 
-    for img_path in X_values:
+    for i, img_path in enumerate(X_values):
         if counter % 200 == 0:
             print(f"Image: [{counter}/{X_values.shape[0]}]")
         # Read Image
         img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-        if img is None: continue
+        if img is None:
+            print("Fucked it, need to remove label {i}")
+
 
         # Keypoint Detection (SIFT)
         keypoints, descriptors = sift.detectAndCompute(img, None)
@@ -79,6 +81,10 @@ def main(dataset, Ks, Ns):
     X = dataset.filepaths
     y = dataset.labels
 
+
+    print(f"X: {X.shape}") 
+    print(f"y: {y.shape}")
+
     X_train, X_test, y_train, y_test = train_test_split(
             X, 
             y, 
@@ -123,5 +129,5 @@ def main(dataset, Ks, Ns):
             print(f"Classification report successfully saved to {csv_filename}")
 
 if __name__ == "__main__":
-    main(CaltechDataset(), Ks=[500, 1000, 2000], Ns=[500, 1000, 2000])
     main(Animal10Dataset(), Ks=[500, 1000, 2000], Ns=[500, 1000, 2000])
+    main(CaltechDataset(), Ks=[500, 1000, 2000], Ns=[500, 1000, 2000])
