@@ -174,7 +174,7 @@ def sample_hyperparameters(num_trials):
     return random_configs
 
 
-def run_hyperparameter_search(model, dataset, hyperparameters):
+def run_hyperparameter_search(num_classes, dataset, hyperparameters):
     # Define train/val/test split
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
@@ -198,7 +198,7 @@ def run_hyperparameter_search(model, dataset, hyperparameters):
                                                 pin_memory=True
                                                 )
         
-        model.update_dropout(params["dropout"])
+        model = Net(num_classes=num_classes)
 
         accuracy = train_model(model,
                             train_loader,
@@ -209,16 +209,17 @@ def run_hyperparameter_search(model, dataset, hyperparameters):
                             )
         print(f"Test [{i}/{len(hyperparameters)}], Accuracy: {accuracy}")
         accuracies.append(accuracy)
+    
+        # Overwrite each time
+        df = pd.DataFrame(hyperparameters)
+        df["Accuracy"] = accuracies
 
-    df = pd.DataFrame(hyperparameters)
-    df["Accuracy"] = accuracies
-
-    df.to_csv(f"{dataset.name}_results.csv")
+        df.to_csv(f"{dataset.name}_results.csv")
 
 
 if __name__ == "__main__":
     print("Running Hyperparameter Samples For Animal-10 Dataset")
-    run_hyperparameter_search(Net(num_classes=10), Animal10Dataset(), sample_hyperparameters(2))
+    run_hyperparameter_search(10, Animal10Dataset(), sample_hyperparameters(5))
 
     print("Running Hyperparameter Samples For Caltech-101 Dataset")
-    run_hyperparameter_search(Net(num_classes=99), CaltechDataset(), sample_hyperparameters(2))
+    run_hyperparameter_search(99, CaltechDataset(), sample_hyperparameters(5))
