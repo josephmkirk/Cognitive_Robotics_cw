@@ -18,15 +18,14 @@ def get_descriptors(X_values):
     counter = 0
     print("Extracting SIFT features...")
 
+    failed_idxs = []
+
     for i, img_path in enumerate(X_values):
-        if counter % 200 == 0:
+        if counter % 1000 == 0:
             print(f"Image: [{counter}/{X_values.shape[0]}]")
         # Read Image
         img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-        if img is None:
-            print("Fucked it, need to remove label {i}")
-
-
+        
         # Keypoint Detection (SIFT)
         keypoints, descriptors = sift.detectAndCompute(img, None)
 
@@ -38,7 +37,7 @@ def get_descriptors(X_values):
     
     print(f"Image: [{counter}/{X_values.shape[0]}]")
 
-    return all_descriptors
+    return all_descriptors, failed_idxs
 
 def train_kmeans_model(all_descriptors, K):
     # Stack all descriptors vertically for clustering
@@ -73,7 +72,6 @@ def generate_features(all_descriptors, kmeans, n):
         
         # Store the results
         features.append(histogram)
-
     
     return features
 
@@ -81,20 +79,25 @@ def main(dataset, Ks, Ns):
     X = dataset.filepaths
     y = dataset.labels
 
-
     print(f"X: {X.shape}") 
     print(f"y: {y.shape}")
 
+    X = X[:1000]
+    y = y[:1000]
+
     X_train, X_test, y_train, y_test = train_test_split(
-            X, 
-            y, 
-            test_size=0.2, 
-            random_state=42, 
+            X,
+            y,
+            test_size=0.2,
+            random_state=42,
             stratify=y # Use stratify if you want balanced classes across splits
         )
 
     train_descriptors = get_descriptors(X_train)
     test_descriptors = get_descriptors(X_test)
+
+    print(train_descriptors.shape)
+    print(test_descriptors.shape)
 
     for k in Ks:
         kmeans = train_kmeans_model(train_descriptors, k)
@@ -102,6 +105,9 @@ def main(dataset, Ks, Ns):
         for n in Ns:
             train_features = generate_features(train_descriptors, kmeans, n)
             test_features = generate_features(test_descriptors, kmeans, n)
+
+            print(train_features.shape)
+            print(test_features.shape)
 
             print("Starting SVM training...")
 
