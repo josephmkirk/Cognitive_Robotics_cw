@@ -183,7 +183,7 @@ def run_hyperparameter_search(num_classes, dataset, hyperparameters):
     accuracies = []
 
     for i, params in enumerate(hyperparameters):
-        print(f"Test [{i+1}/{len(hyperparameters)}]")
+        print(f"========== Trial [{i+1}/{len(hyperparameters)}] ==========")
 
         print(f"Parameters: {params}")
         # Define dataloaders
@@ -213,7 +213,7 @@ def run_hyperparameter_search(num_classes, dataset, hyperparameters):
         accuracies.append(accuracy)
     
         # Overwrite each time
-        df = pd.DataFrame(hyperparameters[:i])
+        df = pd.DataFrame(hyperparameters[:i+1])
         df["Accuracy"] = accuracies
 
         df.to_csv(f"{dataset.name}_results.csv")
