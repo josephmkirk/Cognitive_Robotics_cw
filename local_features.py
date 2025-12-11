@@ -15,14 +15,13 @@ def get_descriptors(X_values):
     # Initialize SIFT
     sift = cv2.SIFT_create()
 
-    counter = 0
     print("Extracting SIFT features...")
 
     no_descriptors = []
     for i, img_path in enumerate(X_values):
         # Progress Ticker
         if i % 1000 == 0:
-            print(f"Image: [{counter}/{X_values.shape[0]}]")
+            print(f"Image: [{i}/{X_values.shape[0]}]")
 
         # Read Image
         img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
@@ -38,7 +37,7 @@ def get_descriptors(X_values):
             all_descriptors.append(descriptors)
 
     
-    print(f"Image: [{counter}/{X_values.shape[0]}]")
+    print(f"Image: [{i}/{X_values.shape[0]}]")
 
     return all_descriptors, no_descriptors
 
@@ -107,12 +106,12 @@ def main(dataset):
     # Remove corresponding y label
     for idx in to_remove:
         print(f"removing {idx} from train set")
-        y_train.pop(idx)
+        y_train = np.delete(y_train, idx)
 
     test_descriptors, to_remove = get_descriptors(X_test)
     for idx in to_remove:
         print(f"removing {idx} from test set")
-        y_test.pop(idx)
+        y_test = np.delete(y_test, idx)
 
     kmeans = train_kmeans_model(train_descriptors)
     
