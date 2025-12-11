@@ -3,8 +3,6 @@ import numpy as np
 import torch
 import pandas as pd
 
-import random, math
-
 from torchsummary import summary
 from torch.utils.data import Subset
 from torchvision import transforms
@@ -17,29 +15,41 @@ from utils import CaltechDataset, Animal10Dataset
 
 from pathlib import Path
 
+# Main model training function
 def train_model(model,
-                train_loader,
-                val_loader,
+                train_data,
+                val_data,
                 n_epochs,
                 learning_rate=1e-3,
                 weight_decay=1e-6,
+                batch_size=16,
+                dropout=0.1,
                 save_metrics=False,
                 output_file="tmp"
                 ):
     
+    # Construct dataloaders
+    train_loader = torch.utils.data.DataLoader(train_data,
+                                                    batch_size=batch_size,
+                                                    shuffle=True,
+                                                    num_workers=4,
+                                                    pin_memory=True
+                                                    )
+    val_loader = torch.utils.data.DataLoader(val_data,
+                                            batch_size=256,
+                                            shuffle=False,
+                                            num_workers=1,
+                                            pin_memory=True
+                                            )
+
     # Set device
-    USE_GPU = True
-    # This ensures PyTorch does not see any CUDA devices, forcing CPU usage.
-    # Only needed for when GPU is so old that CUDA is outdated
-    if not USE_GPU:
-        os.environ['CUDA_VISIBLE_DEVICES'] = ''
-
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
     print(f"Using device: {device}")
 
     # Initialize model
     model.to(device)
+    # Set dropout
+    model.update_dropout(dropout)
 
     # Initialize loss function
     criterion = torch.nn.CrossEntropyLoss()
@@ -91,10 +101,7 @@ def train_model(model,
 
         # Convert the string path to a Path object
         p = Path("TestMetrics")
-        
-        # Use the mkdir() method
-        # parents=True creates parent directories if they don't exist.
-        # exist_ok=True prevents the error if the directory already exists.
+
         p.mkdir(parents=True, exist_ok=True)
         print(f"Directory 'TestMetrics' ensured to exist.")
 
@@ -152,8 +159,7 @@ def evaluate(model, data_loader, criterion, device):
 
 
 def sample_hyperparameters(num_trials):
-    """Generates a list of hyperparameter configurations using random sampling."""    
-
+    #Generates a list of hyperparameter configurations using random sampling.
     param_distributions = {
         "epochs": randint(10, 51),
         "learning_rate": loguniform(1e-5, 1e-1),
@@ -162,11 +168,11 @@ def sample_hyperparameters(num_trials):
         "batch_size": [32, 64, 128, 256]
     }
     
-    # ParameterSampler generates 'n_iter' unique parameter settings
+    # ParameterSampler generates n unique parameter settings
     sampler = ParameterSampler(
         param_distributions=param_distributions,
         n_iter=num_trials,
-        random_state=42 # Set a seed for reproducible sampling
+        random_state=42
     )
 
     # Convert the generator output to a list of dictionaries
@@ -184,35 +190,24 @@ def run_hyperparameter_search(num_classes, dataset, hyperparameters):
 
     for i, params in enumerate(hyperparameters):
         print(f"========== Trial [{i+1}/{len(hyperparameters)}] ==========")
-
         print(f"Parameters: {params}")
-        # Define dataloaders
-        train_loader = torch.utils.data.DataLoader(train_data,
-                                                    batch_size=params["batch_size"],
-                                                    shuffle=True,
-                                                    num_workers=4,
-                                                    pin_memory=True
-                                                    )
-        val_loader = torch.utils.data.DataLoader(val_data,
-                                                batch_size=params["batch_size"],
-                                                shuffle=False,
-                                                num_workers=1,
-                                                pin_memory=True
-                                                )
-        
+
         model = Net(num_classes=num_classes)
 
         accuracy = train_model(model,
-                            train_loader,
-                            val_loader,
+                            train_data,
+                            val_data,
                             n_epochs=params["epochs"],
                             learning_rate=params["learning_rate"],
-                            weight_decay=params["weight_decay"]
+                            batch_size=params["batch_size"],
+                            weight_decay=params["weight_decay"],
+                            dropout=params["dropout"]
                             )
+        
         print(f"Test [{i+1}/{len(hyperparameters)}], Accuracy: {accuracy}")
         accuracies.append(accuracy)
     
-        # Overwrite each time
+        # Overwrite each time incase of crash
         df = pd.DataFrame(hyperparameters[:i+1])
         df["Accuracy"] = accuracies
 
@@ -220,8 +215,50 @@ def run_hyperparameter_search(num_classes, dataset, hyperparameters):
 
 
 if __name__ == "__main__":
+    # Hyperparameter Sweeps
     print("Running Hyperparameter Samples For Animal-10 Dataset")
     run_hyperparameter_search(10, Animal10Dataset(), sample_hyperparameters(5))
 
     print("Running Hyperparameter Samples For Caltech-101 Dataset")
     run_hyperparameter_search(99, CaltechDataset(), sample_hyperparameters(5))
+
+    # Retraining Final Models
+    print("Retraining model with best params for Animal10")
+
+    dataset = Animal10Dataset()
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
+    train_data, val_data = torch.utils.data.random_split(dataset, [train_size, val_size])
+
+    model = Net(num_classes=10)
+
+    train_model(model,
+                train_data,
+                val_data,
+                n_epochs=,
+                learning_rate=,
+                weight_decay=,
+                dropout=,
+                save_metrics=True,
+                output_file="animal-10_final_metrics"
+                )
+    
+    print("Retraining model with best params for Caltech101")
+
+    dataset = CaltechDataset()
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
+    train_data, val_data = torch.utils.data.random_split(dataset, [train_size, val_size])
+
+    model = Net(num_classes=99)
+
+    train_model(model,
+                train_data,
+                val_data,
+                n_epochs=,
+                learning_rate=,
+                weight_decay=,
+                dropout=,
+                save_metrics=True,
+                output_file="caltech-101_final_metrics"
+                )
