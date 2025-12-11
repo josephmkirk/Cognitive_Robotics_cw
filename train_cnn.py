@@ -216,11 +216,11 @@ def run_hyperparameter_search(num_classes, dataset, hyperparameters):
 
 if __name__ == "__main__":
     # Hyperparameter Sweeps
-    print("Running Hyperparameter Samples For Animal-10 Dataset")
-    run_hyperparameter_search(10, Animal10Dataset(), sample_hyperparameters(5))
+    # print("Running Hyperparameter Samples For Animal-10 Dataset")
+    # run_hyperparameter_search(10, Animal10Dataset(), sample_hyperparameters(5))
 
-    print("Running Hyperparameter Samples For Caltech-101 Dataset")
-    run_hyperparameter_search(99, CaltechDataset(), sample_hyperparameters(5))
+    # print("Running Hyperparameter Samples For Caltech-101 Dataset")
+    # run_hyperparameter_search(99, CaltechDataset(), sample_hyperparameters(5))
 
     # Retraining Final Models
     print("Retraining model with best params for Animal10")
@@ -232,13 +232,15 @@ if __name__ == "__main__":
 
     model = Net(num_classes=10)
 
+
     train_model(model,
                 train_data,
                 val_data,
-                n_epochs=,
-                learning_rate=,
-                weight_decay=,
-                dropout=,
+                n_epochs=40,
+                learning_rate=0.0014609954019847433,
+                weight_decay=1.2219163423992239e-06,
+                dropout=0.2577412472845793,
+                batch_size=256,
                 save_metrics=True,
                 output_file="animal-10_final_metrics"
                 )
@@ -255,10 +257,11 @@ if __name__ == "__main__":
     train_model(model,
                 train_data,
                 val_data,
-                n_epochs=,
-                learning_rate=,
-                weight_decay=,
-                dropout=,
+                n_epochs=45,
+                learning_rate=0.002463768595899745,
+                weight_decay=0.0005829384542994739,
+                dropout=0.11854507080054433,
+                batch_size=64,
                 save_metrics=True,
                 output_file="caltech-101_final_metrics"
                 )

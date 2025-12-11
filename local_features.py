@@ -66,6 +66,8 @@ def generate_features(all_descriptors, kmeans, K=1000):
     features = [] # List to hold the K-dimensional histograms (the features)
 
     for descriptors in all_descriptors:
+        descriptors = descriptors.astype(np.float64)
+
         # Quantization: Map descriptors to the K visual words
         # This returns an array of size (Number of descriptors) containing cluster indices (0 to K-1)
         visual_word_indices = kmeans.predict(descriptors)
