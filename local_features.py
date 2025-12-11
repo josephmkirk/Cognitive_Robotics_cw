@@ -41,12 +41,10 @@ def get_descriptors(X_values):
 
     return all_descriptors, no_descriptors
 
-def train_kmeans_model(all_descriptors):
+def train_kmeans_model(all_descriptors, K):
     # Stack all descriptors vertically for clustering
     all_descriptors_stacked = np.vstack(all_descriptors)
 
-    # Define K
-    K = 1000  
     print(f"Starting K-Means clustering with K = {K}...")
 
     # Initialize the K-Means model
@@ -58,24 +56,22 @@ def train_kmeans_model(all_descriptors):
 
     return kmeans
     
-def generate_features(all_descriptors, kmeans, K=1000):
+def generate_features(all_descriptors, kmeans, K):
 
     features = [] # List to hold the K-dimensional histograms (the features)
 
     for descriptors in all_descriptors:
-        # Quantization: Map descriptors to the K visual words
-        # This returns an array of size (Number of descriptors) containing cluster indices (0 to K-1)
+        # Map descriptors to the K visual words
         visual_word_indices = kmeans.predict(descriptors)
 
-        # 3. Histogram Creation: Count the occurrences of each visual word
-        # The result is a K-dimensional vector representing the image
+        # Count the occurrences of each visual word
         histogram, _ = np.histogram(visual_word_indices, bins=range(K + 1))
         
-        # 4. Normalize the histogram (Optional but recommended for robust SVM training)
+        # Normalize the histogram
         histogram = histogram.astype("float")
         histogram /= (histogram.sum() + 1e-7) # L1 Normalization
         
-        # 5. Store the results
+        # Store the results
         features.append(histogram)
 
     
@@ -93,7 +89,7 @@ def main(dataset):
             random_state=42, 
             stratify=y # Use stratify if you want balanced classes across splits
         )
-
+    
     train_descriptors, to_remove = get_descriptors(X_train)
     # Remove corresponding y label
     for idx in to_remove:
@@ -105,35 +101,34 @@ def main(dataset):
         print(f"removing {idx} from test set")
         y_test = np.delete(y_test, idx)
 
-    kmeans = train_kmeans_model(train_descriptors)
-    
-    train_features = generate_features(train_descriptors, kmeans)
-    test_features = generate_features(test_descriptors, kmeans)
+    Ks = [500, 750, 1000, 1500, 2000]
+    for K in Ks:
+        kmeans = train_kmeans_model(train_descriptors, K)
+        
+        train_features = generate_features(train_descriptors, kmeans, K)
+        test_features = generate_features(test_descriptors, kmeans, K)
 
-    print("Starting SVM training...")
+        print("Starting SVM training...")
 
-    # Initialize the SVM classifier
-    # C: Regularization parameter (controls margin vs. misclassification trade-off)
-    # kernel: RBF is a common, powerful choice
-    # decision_function_shape='ovr': One-vs-Rest, suitable for multi-class problems (75 categories)
-    svm = SVC(C=1.0, kernel="rbf", decision_function_shape="ovr", random_state=42)
+        # Initialize the SVM classifier
+        svm = SVC(C=1.0, kernel="rbf", decision_function_shape="ovr", random_state=42)
 
-    # Train the SVM on the BoVW histograms
-    svm.fit(train_features, y_train)
+        # Train the SVM on the BoVW histograms
+        svm.fit(train_features, y_train)
 
-    print("SVM training complete.")
+        print("SVM training complete.")
 
-    y_pred = svm.predict(test_features)
-    # You can then use metrics like classification_report, accuracy_score, etc. to evaluate performance.
-    report = classification_report(y_test, y_pred, target_names=dataset.encoder.classes_, output_dict=True)
+        y_pred = svm.predict(test_features)
+        # You can then use metrics like classification_report, accuracy_score, etc. to evaluate performance.
+        report = classification_report(y_test, y_pred, target_names=dataset.encoder.classes_, output_dict=True)
 
-    df_report = pd.DataFrame(report).T
+        df_report = pd.DataFrame(report).T
 
-    # --- Save DataFrame to CSV ---
-    csv_filename = f'{dataset.name}_report_metrics.csv'
-    df_report.to_csv(csv_filename, index=True)
+        # Save DataFrame to CSV
+        csv_filename = f'{dataset.name}_report_metrics_K_{K}.csv'
+        df_report.to_csv(csv_filename, index=True)
 
-    print(f"Classification report successfully saved to {csv_filename}")
+        print(f"Classification report successfully saved to {csv_filename}")
 
 if __name__ == "__main__":
     main(Animal10Dataset())
