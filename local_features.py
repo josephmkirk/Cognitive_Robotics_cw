@@ -18,9 +18,10 @@ def get_descriptors(X_values):
     counter = 0
     print("Extracting SIFT features...")
 
-    for img_path in X_values:
+    no_descriptors = []
+    for i, img_path in enumerate(X_values):
         # Progress Ticker
-        if counter % 1000 == 0:
+        if i % 1000 == 0:
             print(f"Image: [{counter}/{X_values.shape[0]}]")
 
         # Read Image
@@ -32,17 +33,14 @@ def get_descriptors(X_values):
 
         # If features are found, store them
         if descriptors is None:
-            # Append an empty 2D array of the correct shape (0 features, 128 dimensions)
-            # This ensures that all_descriptors contains an array for every image.
-            all_descriptors.append(np.array([]).reshape(0, 128))
+            no_descriptors.append(i)
         else:
             all_descriptors.append(descriptors)
 
-        counter += 1
     
     print(f"Image: [{counter}/{X_values.shape[0]}]")
 
-    return all_descriptors
+    return all_descriptors, no_descriptors
 
 def train_kmeans_model(all_descriptors):
     # Stack all descriptors vertically for clustering
@@ -105,8 +103,16 @@ def main(dataset):
             stratify=y # Use stratify if you want balanced classes across splits
         )
 
-    train_descriptors = get_descriptors(X_train)
-    test_descriptors = get_descriptors(X_test)
+    train_descriptors, to_remove = get_descriptors(X_train)
+    # Remove corresponding y label
+    for idx in to_remove:
+        print(f"removing {idx} from train set")
+        y_train.pop(idx)
+
+    test_descriptors, to_remove = get_descriptors(X_test)
+    for idx in to_remove:
+        print(f"removing {idx} from test set")
+        y_test.pop(idx)
 
     kmeans = train_kmeans_model(train_descriptors)
     
