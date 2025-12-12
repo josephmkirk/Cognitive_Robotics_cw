@@ -6,6 +6,7 @@ import pandas as pd
 from torchsummary import summary
 from torch.utils.data import Subset
 from torchvision import transforms
+from sklearn.metrics import classification_report
 
 from sklearn.model_selection import KFold, ParameterSampler, train_test_split
 from scipy.stats import uniform, randint, loguniform
@@ -19,8 +20,11 @@ from pathlib import Path
 def train_model(model,
                 train_data,
                 val_data,
+                test_data,
                 n_epochs,
-                learning_rate=1e-3,
+
+                #Defaults
+                learning_rate=1e-3, 
                 weight_decay=1e-6,
                 batch_size=16,
                 dropout=0.1,
@@ -36,6 +40,13 @@ def train_model(model,
                                                     pin_memory=True
                                                     )
     val_loader = torch.utils.data.DataLoader(val_data,
+                                            batch_size=256,
+                                            shuffle=False,
+                                            num_workers=1,
+                                            pin_memory=True
+                                            )
+    
+    test_loader = torch.utils.data.DataLoader(test_data,
                                             batch_size=256,
                                             shuffle=False,
                                             num_workers=1,
@@ -81,7 +92,7 @@ def train_model(model,
 
         train_loss, model = train(model, train_loader, optimizer, device, criterion)
         # Evaluate on validation set
-        val_loss, accuracy = evaluate(model, val_loader, criterion, device)
+        val_loss, accuracy, _ = evaluate(model, val_loader, criterion, device)
 
         # Print output
         print(f"Epoch [{epoch + 1}/{n_epochs}], Training Loss: {train_loss:.4f}")
@@ -106,6 +117,21 @@ def train_model(model,
         print(f"Directory 'TestMetrics' ensured to exist.")
 
         df = df.to_csv(f"TestMetrics/{output_file}.csv")
+
+        _, test_accuracy, final_predictions = evaluate(model, test_loader, criterion, device)
+
+        print(f"Final testing accuracy {test_accuracy}")
+
+        # You can then use metrics like classification_report, accuracy_score, etc. to evaluate performance.
+        report = classification_report(test_data.dataset.targets[test_data.indices], final_predictions, target_names=dataset.encoder.classes_, output_dict=True)
+
+        df_report = pd.DataFrame(report).T
+
+        # Save DataFrame to CSV
+        csv_filename = f'{dataset.name}_report_metrics_CNN.csv'
+        df_report.to_csv(csv_filename, index=True)
+
+        print(f"Classification report successfully saved to {csv_filename}")
 
     return accuracy
 
@@ -141,11 +167,14 @@ def evaluate(model, data_loader, criterion, device):
     predictions = []
     total_loss = 0.0
 
+    predictions = []
+
     with torch.no_grad():
         for inputs, labels in data_loader:
             inputs, labels = inputs.to(device), labels.to(device)
 
             outputs = model(inputs)
+            predictions.append(outputs)
             loss = criterion(outputs, labels)
             _, predicted = torch.max(outputs.data, 1)
 
@@ -155,7 +184,7 @@ def evaluate(model, data_loader, criterion, device):
 
     accuracy = (np.array(predictions) == np.array(targets)).mean()
     avg_loss = total_loss / len(data_loader)
-    return avg_loss, accuracy
+    return avg_loss, accuracy, predictions
 
 
 def sample_hyperparameters(num_trials):
@@ -213,6 +242,18 @@ def run_hyperparameter_search(num_classes, dataset, hyperparameters):
 
         df.to_csv(f"{dataset.name}_results.csv")
 
+def split_data(dataset):
+    # 70/30 split train/(val+test)
+    train_size = int(0.7 * len(dataset))
+    total_test_size = len(dataset) - train_size
+    train_data, total_test_data = torch.utils.data.random_split(dataset, [train_size, total_test_size])
+
+    # 15/15 split val/test
+    val_size = total_test_size // 2
+    test_size = total_test_size - val_size
+    val_data, test_data = torch.utils.data.random_split(total_test_data, [val_size, test_size])
+
+    return train_data, val_data, test_data
 
 if __name__ == "__main__":
     # Hyperparameter Sweeps
@@ -226,17 +267,17 @@ if __name__ == "__main__":
     print("Retraining model with best params for Animal10")
 
     dataset = Animal10Dataset()
-    train_size = int(0.8 * len(dataset))
-    val_size = len(dataset) - train_size
-    train_data, val_data = torch.utils.data.random_split(dataset, [train_size, val_size])
+    train_data, val_data, test_data = split_data(dataset)
 
     model = Net(num_classes=10)
 
+    summary(model, (3,256,256))
 
     train_model(model,
                 train_data,
                 val_data,
-                n_epochs=40,
+                test_data,
+                n_epochs=1,
                 learning_rate=0.0014609954019847433,
                 weight_decay=1.2219163423992239e-06,
                 dropout=0.2577412472845793,
@@ -248,16 +289,15 @@ if __name__ == "__main__":
     print("Retraining model with best params for Caltech101")
 
     dataset = CaltechDataset()
-    train_size = int(0.8 * len(dataset))
-    val_size = len(dataset) - train_size
-    train_data, val_data = torch.utils.data.random_split(dataset, [train_size, val_size])
+    train_data, val_data, test_data = split_data(dataset)    
 
     model = Net(num_classes=99)
 
     train_model(model,
                 train_data,
                 val_data,
-                n_epochs=45,
+                test_data,
+                n_epochs=1,
                 learning_rate=0.002463768595899745,
                 weight_decay=0.0005829384542994739,
                 dropout=0.11854507080054433,
