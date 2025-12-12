@@ -158,7 +158,7 @@ def evaluate(model, data_loader, criterion, device):
 
     accuracy = (np.array(predictions) == np.array(targets)).mean()
     avg_loss = total_loss / len(data_loader)
-    return avg_loss, accuracy
+    return avg_loss, accuracy, targets, predictions
 
 
 def sample_hyperparameters(num_trials):
@@ -269,8 +269,14 @@ if __name__ == "__main__":
     criterion = torch.nn.CrossEntropyLoss()
     criterion.to(device)
 
-    _, accuracy = evaluate(model, test_loader, criterion, device)
-    print(f"Test Accuracy: {accuracy}")
+    _, accuracy, targets, predictions = evaluate(model, test_loader, criterion, device)
+    
+    report = classification_report(targets, predictions, target_names=dataset.encoder.classes_, output_dict=True)
+    df_report = pd.DataFrame(report).T
+    # Save DataFrame to CSV
+    csv_filename = f'{dataset.name}_report_metrics_cnn.csv'
+    df_report.to_csv(csv_filename, index=True)
+    print(f"Classification report successfully saved to {csv_filename}")
 
     print("Retraining model with best params for Caltech101")
 
@@ -303,5 +309,11 @@ if __name__ == "__main__":
     criterion = torch.nn.CrossEntropyLoss()
     criterion.to(device)
 
-    _, accuracy = evaluate(model, test_loader, criterion, device)
-    print(f"Test Accuracy: {accuracy}")
+    _, accuracy, targets, predictions = evaluate(model, test_loader, criterion, device)
+
+    report = classification_report(targets, predictions, target_names=dataset.encoder.classes_, output_dict=True)
+    df_report = pd.DataFrame(report).T
+    # Save DataFrame to CSV
+    csv_filename = f'{dataset.name}_report_metrics_cnn.csv'
+    df_report.to_csv(csv_filename, index=True)
+    print(f"Classification report successfully saved to {csv_filename}")
